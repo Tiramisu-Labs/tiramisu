@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Parser.hpp"
-#include "ICommand.hpp"
+#include "commands/ICommand.hpp"
 
 #include <functional> // std::function
 #include <stdlib.h>
@@ -12,19 +12,6 @@ class Webserver;
 class Parser;
 class SshHandler;
 
-enum class Extensions
-{
-    C,
-    CPP,
-    RS,
-    JS,
-    TS,
-    GO,
-    PY,
-    INVALID
-
-};
-
 enum class Commands
 {
     UNKNOWN,
@@ -32,6 +19,7 @@ enum class Commands
     HOST,
     BUILD,
     DEPLOY,
+    WEBSERVER,
     SETUP,
     HELP,
     UNISTALL,
@@ -58,7 +46,7 @@ class CLI
         bool create_config_dir();
 
         // factory method
-        std::vector<std::function<std::unique_ptr<ICommand>()>> m_commandFactories;
+        std::vector<std::function<std::unique_ptr<ICommand>(std::unique_ptr<SshHandler>& sshHandler)>> m_commandFactories;
         void registerCommandFactories();
 
     public:

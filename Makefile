@@ -1,6 +1,6 @@
 NAME=tiramisu
-SRC=Lexer.cpp CLI.cpp main.cpp Parser.cpp SshHandler.cpp Webserver.cpp \
-	commands/Host.cpp commands/Build.cpp commands/Setup.cpp
+SRC=Lexer.cpp CLI.cpp main.cpp Parser.cpp SshHandler.cpp \
+	commands/Host.cpp commands/Build.cpp commands/Setup.cpp commands/Webserver.cpp
 SRCDIR=src
 SRCS=$(addprefix $(SRCDIR)/, $(SRC))
 CONFDIR=~/.tiramisu/config/

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ICommand.hpp"
-#include <map>
+#include <unordered_map>
 
 enum class Extensions
 {
@@ -21,12 +21,12 @@ class Build : public ICommand {
 
     public:
     Build();
-    ~Build();
+    ~Build() override {};
     std::string getName() const override;
     std::string getHelp() const override;
     void execute(const Command_t& command) override;
 
-    static const std::map<std::string, Extensions> extensionsMap_ {
+    const std::unordered_map<std::string, Extensions> extensionsMap_ {
         {"c", Extensions::C},
         {"cpp", Extensions::CPP},
         {"rs", Extensions::RS},

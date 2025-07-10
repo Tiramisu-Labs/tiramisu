@@ -1,8 +1,8 @@
 #include "../include/CLI.hpp"
 #include "../include/SshHandler.hpp"
-#include "../include/Webserver.hpp"
 #include "../include/Parser.hpp"
 #include "../include/Utils.hpp"
+#include "../include/commands/Webserver.hpp"
 #include "../include/commands/Host.hpp"
 #include "../include/commands/Setup.hpp"
 #include "../include/commands/Build.hpp"
@@ -119,7 +119,7 @@ bool CLI::create_config_dir() {
 }
     
 void CLI::processParsedCommand(const Command_t& command) {
-    std::unique_ptr<ICommand> currentCommandInstance = m_commandFactories[static_cast<size_t>(commandsMap[command.name])]();
+    std::unique_ptr<ICommand> currentCommandInstance = m_commandFactories[static_cast<size_t>(commandsMap[command.name])](m_sshHandler);
     currentCommandInstance->execute(command);
 }
 
@@ -164,9 +164,11 @@ void CLI::registerCommandFactories() {
     m_commandFactories.resize(static_cast<size_t>(Commands::SIZE));
 
     m_commandFactories[static_cast<size_t>(Commands::HOST)] =
-        []() { return std::make_unique<Host>(); };
+        [&](std::unique_ptr<SshHandler>& sshHandler) { (void)sshHandler; return std::make_unique<Host>(); };
     m_commandFactories[static_cast<size_t>(Commands::BUILD)] =
-        []() { return std::make_unique<Build>(); };
+        [&](std::unique_ptr<SshHandler>& sshHandler) { (void)sshHandler; return std::make_unique<Build>(); };
     m_commandFactories[static_cast<size_t>(Commands::SETUP)] =
-        []() { return std::make_unique<Setup>(); };
+        [&](std::unique_ptr<SshHandler>& sshHandler) { (void)sshHandler; return std::make_unique<Setup>(); };
+    m_commandFactories[static_cast<size_t>(Commands::WEBSERVER)] =
+        [&](std::unique_ptr<SshHandler>& sshHandler) { return std::make_unique<Webserver>(std::move(sshHandler)); };
 }

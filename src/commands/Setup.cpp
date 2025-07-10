@@ -13,5 +13,5 @@ std::string Setup::getHelp() const {
 }
 
 void Setup::execute(const Command_t & command) {
-    
+    std::cout << command.name << std::endl;
 }
