@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/tsu.dir/src/main.cpp.o CMakeFiles/tsu.dir/src/Lexer.cpp.o CMakeFiles/tsu.dir/src/Parser.cpp.o CMakeFiles/tsu.dir/src/CLI.cpp.o CMakeFiles/tsu.dir/src/Webserver.cpp.o CMakeFiles/tsu.dir/src/SshHandler.cpp.o -o tsu 

@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/my_lang_compiler.dir/src/main.cpp.o CMakeFiles/my_lang_compiler.dir/src/Lexer.cpp.o CMakeFiles/my_lang_compiler.dir/src/Parser.cpp.o CMakeFiles/my_lang_compiler.dir/src/CLI.cpp.o CMakeFiles/my_lang_compiler.dir/src/Webserver.cpp.o CMakeFiles/my_lang_compiler.dir/src/SshHandler.cpp.o -o my_lang_compiler 
