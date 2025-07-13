@@ -1,4 +1,4 @@
-Tiramisu CLI: Deployment Workflow and Technical Overview
+# Tiramisu CLI: Deployment Workflow and Technical Overview
 The Tiramisu CLI leverages cross-compilation and SSH to deploy a lightweight, WASM-enabled server environment on a resource-constrained remote host.
 
 1. The Local Machine (CLI Host)
@@ -34,7 +34,7 @@ Example Cross-Compilation Command:
 
 Bash
 
-# This command links Wasmtime statically (-Bstatic) and glibc dynamically (-Bdynamic)
+## This command links Wasmtime statically (-Bstatic) and glibc dynamically (-Bdynamic)
 <target-toolchain>-gcc -o custom_server custom_server.c \
   -I /path/to/wasmtime/include \
   -Wl,-Bstatic -lwasmtime -Wl,-Bdynamic \
