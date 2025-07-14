@@ -15,7 +15,7 @@ class Host : public ICommand {
     private:
     Command_t command;
 
-    void add(std::vector<std::pair<std::string, std::string>> options);
+    void add(std::unordered_map<std::string, std::string> options);
     void list();
     std::map<std::string, std::string> getHostSpec(std::string& alias);
 

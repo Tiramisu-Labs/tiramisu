@@ -2,7 +2,7 @@
 
 # Set versions and paths
 
-NGINX_VERSION=1.25.4
+NGINX_VERSION=1.28.0
 
 INSTALL_DIR="$HOME/nginx"
 

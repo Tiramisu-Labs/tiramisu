@@ -32,9 +32,6 @@ Command_t Parser::parse()
     }
     
     command.name = current_token.getValue();
-    if (command.name == "host") {
-        command.subcommand = getNextToken().getValue();
-    }
     while ((current_token = getNextToken()).getType() != ETypes::EOF_TOKEN) {
         std::cout << "current_token: " << current_token.getValue() << std::endl;
         switch (current_token.getType()) {
@@ -49,7 +46,7 @@ Command_t Parser::parse()
                 if (value_token.getType() != ETypes::OPTION_VALUE) {
                     throwParserError("Expected option value for '" + option_name + "', but found: " + value_token.getValue());
                 }
-                    command.options.push_back({option_name, value_token.getValue()});
+                    command.options.insert({option_name, value_token.getValue()});
                     break;
                 }
             case ETypes::NUMBER: // fall through

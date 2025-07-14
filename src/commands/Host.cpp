@@ -11,12 +11,14 @@ std::string Host::getHelp() const {
 }
 
 void Host::execute(const Command_t& command) {
-    switch (host_cmds[command.subcommand])
+    if (command.arguments.size() == 0) throw std::runtime_error("command missing\n" + getHelp());
+    auto const sub_command = command.arguments.front();
+    switch (host_cmds[sub_command])
     {
         case Commands::ADD: add(command.options); break;
         case Commands::LIST: list(); break;
         case Commands::INVALID: {
-            std::cerr << "host -> " << command.subcommand << " unrecognized\n";
+            std::cerr << "host -> " << sub_command << " unrecognized\n" + getHelp() << "\n";
             break;
         }
         default: break;
@@ -38,7 +40,7 @@ static std::string readHosts() {
     return ret;
 }
 
-void Host::add(std::vector<std::pair<std::string, std::string>> options) {
+void Host::add(std::unordered_map<std::string, std::string> options) {
     std::string host = "";
     std::string user = "";
     std::string password = "";

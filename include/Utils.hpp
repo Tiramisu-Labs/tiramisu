@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 enum class ETypes
 {
@@ -18,8 +19,7 @@ enum class ETypes
 
 struct Command_t {
     std::string name;
-    std::string subcommand;
-    std::vector<std::pair<std::string, std::string> > options;
+    std::unordered_map<std::string, std::string> options;
     std::vector<std::string> flags;
     std::vector<std::string> arguments;
 };

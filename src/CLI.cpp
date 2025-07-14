@@ -9,9 +9,9 @@
 
 #include <algorithm>
 #include <ranges>
-#include <filesystem>
 #include <fstream>
 #include <map>
+#include <filesystem>
 
 static const std::map<std::string, Extensions> extensionsMap_ {
     {"c", Extensions::C},
@@ -120,7 +120,11 @@ bool CLI::create_config_dir() {
     
 void CLI::processParsedCommand(const Command_t& command) {
     std::unique_ptr<ICommand> currentCommandInstance = m_commandFactories[static_cast<size_t>(commandsMap[command.name])](m_sshHandler);
-    currentCommandInstance->execute(command);
+    try {
+        currentCommandInstance->execute(command);
+    } catch (const std::runtime_error& e) {
+        std::cerr << "Error: " << e.what() << "\n";
+    }
 }
 
 void CLI::executeConnect(const std::string& host, const std::string& user, const std::string& password) {
@@ -168,7 +172,7 @@ void CLI::registerCommandFactories() {
     m_commandFactories[static_cast<size_t>(Commands::BUILD)] =
         [&](std::unique_ptr<SshHandler>& sshHandler) { (void)sshHandler; return std::make_unique<Build>(); };
     m_commandFactories[static_cast<size_t>(Commands::SETUP)] =
-        [&](std::unique_ptr<SshHandler>& sshHandler) { (void)sshHandler; return std::make_unique<Setup>(); };
+        [&](std::unique_ptr<SshHandler>& sshHandler) { (void)sshHandler; return std::make_unique<Setup>(std::move(sshHandler)); };
     m_commandFactories[static_cast<size_t>(Commands::WEBSERVER)] =
         [&](std::unique_ptr<SshHandler>& sshHandler) { return std::make_unique<Webserver>(std::move(sshHandler)); };
 }
