@@ -34,5 +34,11 @@ void Install::execute(const Command_t& command) {
         std::cout << "emsdk added at location " << std::getenv("HOME") <<
             "/ and source $HOME/emsdk/emsdk_env.sh added to " <<
             std::getenv("HOME") << "/.bash_profile\n";
+    } else if (package == "py2wasm") {
+        status = system("pip install py2wasm");
+        status = system("echo 'export PATH=$PATH:$HOME/.local/bin' >> $HOME/.bash_profile");
+        if (!status) {
+            throw std::runtime_error("something went wrong");
+        }
     }
 }

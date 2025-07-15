@@ -49,7 +49,24 @@ void Build::execute(const Command_t& command) {
                     std::string cmd = "emcc -sSTANDALONE_WASM=1 -sPURE_WASI=1 " + file + " -o " + file.substr(0, file.find_last_of('.')) + ".wasm";
                     std::cout << cmd << "\n";
                     int s_call = system(cmd.c_str());
-                    std::cout << s_call << std::endl;
+                    if (s_call) {
+                        std::cerr << "Error: something went wrong. Exit status: " << s_call << std::endl;
+                    }
+                    break;
+                }
+                case Extensions::PY: {
+                    if (!checkExtensionCompiler(extension)) {
+                        std::string error = "no compiler found to compile .py files into .wasm\n"
+                        "Please visit https://github.com/wasmerio/py2wasm and follow the guide to install it,\n"
+                        "or try running 'tiramisu install py2wasm' to try automatically install it.";
+                        throw std::runtime_error(error);
+                    }
+                    std::string cmd = "py2wasm " + file + " -o " + file.substr(0, file.find_last_of('.')) + ".wasm";
+                    std::cout << cmd << "\n";
+                    int s_call = system(cmd.c_str());
+                    if (s_call) {
+                        std::cerr << "Error: something went wrong. Exit status: " << s_call << std::endl;
+                    }
                     break;
                 }
                 case Extensions::WASM: continue;
@@ -66,7 +83,17 @@ bool Build::checkExtensionCompiler(const std::string ext)
         #ifdef _WIN32
             status = system("Get-Package -Name emscripten");
         #else
-            status = !system("dpkg -l emscripten");
+            status = system("env | grep emsdk > /dev/null 2>&1");
+        #endif
+    } else if (ext == "py") {
+        #ifdef _WIN32
+            status = system("Get-Package -Name emscripten");
+        #else
+            status = !system("pip > /dev/null 2>&1");
+            if (!status) {
+                throw std::runtime_error("pip library is missing");
+            }
+            status = !system("pip list | grep py2wasm > /dev/null 2>&1");
         #endif
     }
     return status;
