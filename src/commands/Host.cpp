@@ -1,6 +1,7 @@
 #include "../../include/commands/Host.hpp"
-
+#include "../../include/SshHandler.hpp"
 Host::Host() {}
+Host::Host(std::unique_ptr<SshHandler>&& handler) : m_sshHandler(std::move(handler)) {}
 
 std::string Host::getName() const { return "host"; }
 
@@ -17,6 +18,7 @@ void Host::execute(const Command_t& command) {
     {
         case Commands::ADD: add(command.options); break;
         case Commands::LIST: list(); break;
+        case Commands::TEST: test(command.options); break;
         case Commands::INVALID: {
             std::cerr << "host -> " << sub_command << " unrecognized\n" + getHelp() << "\n";
             break;
@@ -26,7 +28,7 @@ void Host::execute(const Command_t& command) {
 }
 
 static std::string readHosts() {
-    std::ifstream read_file("hosts.yaml");
+    std::ifstream read_file(std::string(std::getenv("HOME")) + "/.config/tiramisu/hosts.yaml");
     if (!read_file.is_open()) {
         std::cerr << "Warning: could not open hosts.yaml\n";
         exit(1) ;
@@ -58,7 +60,8 @@ void Host::add(std::unordered_map<std::string, std::string> options) {
             std::cerr << "Warning: Unrecognized option '" << opt.first << "' for connect command.\n";
         }
     }
-    if (readHosts().find(alias)) {
+
+    if (readHosts().find(alias) != std::string::npos) {
         std::cerr << alias << " already present\n";
         return ;
     }
@@ -73,7 +76,7 @@ void Host::add(std::unordered_map<std::string, std::string> options) {
             return ;
         }
     }
-    std::ofstream hosts_file("hosts.yaml", std::ios_base::app);
+    std::ofstream hosts_file(std::string(std::getenv("HOME")) + "/.config/tiramisu/hosts.yaml");
     if (!hosts_file.is_open()) {
         std::cerr << "An errror accured while opening file ~/.tiramisu/config/hosts.yaml\n";
     }
@@ -85,7 +88,7 @@ void Host::add(std::unordered_map<std::string, std::string> options) {
     hosts_file.close();
 }
 void Host::list() {
-    std::ifstream hosts_file("hosts.yaml");
+    std::ifstream hosts_file(std::string(std::getenv("HOME")) + "/.config/tiramisu/hosts.yaml");
     if (!hosts_file.is_open()) {
         std::cerr << "Warning: could not open hosts.yaml\n";
         return ;
@@ -96,8 +99,9 @@ void Host::list() {
     }
     hosts_file.close();
 }
-std::map<std::string, std::string> Host::getHostSpec(std::string& alias) {
-    std::ifstream hosts_file("hosts.yaml");
+
+std::map<std::string, std::string> Host::getHostSpec(const std::string& alias) {
+    std::ifstream hosts_file(std::string(std::getenv("HOME")) + "/.config/tiramisu/hosts.yaml");
     if (!hosts_file.is_open()) {
         std::cerr << "Warning: could not open hosts.yaml\n";
         exit(-1);
@@ -118,4 +122,45 @@ std::map<std::string, std::string> Host::getHostSpec(std::string& alias) {
     }
     hosts_file.close();
     return ret;
+}
+
+std::string Host::getArch(const std::unordered_map<std::string, std::string>& options)
+{
+    try {
+        fillSshHandler(options);
+    } catch (const std::runtime_error& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
+    return m_sshHandler->getArch();
+}
+
+void Host::test(const std::unordered_map<std::string, std::string> &options)
+{
+    try {
+        fillSshHandler(options);
+    } catch (const std::runtime_error& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
+    
+    m_sshHandler->exec_remote_commands({"arch"});
+}
+
+inline void Host::fillSshHandler(const std::unordered_map<std::string, std::string> &options)
+{
+    const auto alias = options.find("--alias");
+    if (alias == options.end()) throw std::runtime_error("alias not found");
+    std::cout << "alias: " + alias->second << "\n";
+    const auto host_file = getHostSpec(alias->second);
+    for (auto& [x, y] : host_file) {
+        std::cout << x << " " << y << "\n";
+    }
+
+    auto host = host_file.find("  host")->second;
+    auto password = host_file.find("  password")->second;
+    auto user = host_file.find("  user")->second;
+    auto port = host_file.find("  port")->second;
+    m_sshHandler->setHost(std::move(host));
+    m_sshHandler->setPassword(std::move(password));
+    m_sshHandler->setUser(std::move(user));
+    m_sshHandler->setPort(std::atoi(port.c_str()));
 }

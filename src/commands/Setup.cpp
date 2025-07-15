@@ -36,8 +36,10 @@ void Setup::execute(const Command_t & command) {
         if (version_it != options.end()) version = version_it->second;
         std::cout << "installing " << web_server << " on remote server. Version: " << version << "\n";
         m_sshHandler->upload("install_nginx.sh");
-        m_sshHandler->exec_remote_command("bash install_nginx.sh");
-        m_sshHandler->exec_remote_command("rm install_nginx.sh");
+        m_sshHandler->exec_remote_commands({
+            "chmod +x install_nginx.sh && bash install_nginx.sh",
+            "rm install_nginx.sh"
+        });
     } catch (const std::runtime_error& e) {
         std::cerr << "Error: " << e.what() << "\n";
     }

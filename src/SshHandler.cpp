@@ -15,68 +15,100 @@ SshHandler::~SshHandler() {
     }
 }
 
-void SshHandler::setHost(std::string&& host) {
-    m_host = std::move(host);
+void SshHandler::setHost(std::string&& host) { m_host = std::move(host); }
+void SshHandler::setUser(std::string&& user) { m_user = std::move(user); }
+void SshHandler::setPort(int port) { m_port = port; }
+void SshHandler::setPassword(std::string&& password) { m_password = std::move(password); }
+
+ssh_channel SshHandler::initChannel() {
+    ssh_channel channel;
+    int rc;
+
+    if (!sshConnection()) {
+        const char *err = ssh_get_error(m_session);
+        throw std::runtime_error(err);
+    }
+    channel = ssh_channel_new(m_session);
+
+    if (channel == NULL) {
+        const char *err = ssh_get_error(m_session);
+        throw std::runtime_error(err);
+    }
+    
+    rc = ssh_channel_open_session(channel);
+    if (rc != SSH_OK) {
+        ssh_channel_free(channel);
+        const char *err = ssh_get_error(m_session);
+        throw std::runtime_error(err);
+    }
+    return channel;
 }
 
-void SshHandler::setUser(std::string&& user) {
-    m_user = std::move(user);
+std::string SshHandler::getArch()
+{
+    char buffer[256];
+    ssh_channel channel;
+    std::string arch = "";
+    int rc, nbytes;
+
+    channel = initChannel();
+    rc = ssh_channel_request_exec(channel, "arch");
+    if (rc != SSH_OK) {
+        ssh_channel_close(channel);
+        ssh_channel_free(channel);
+        const char *err = ssh_get_error(m_session);
+        throw std::runtime_error(err);
+    }
+    
+    nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
+    while (nbytes > 0) {
+        arch += buffer;
+        nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
+    }
+    
+    if (nbytes < 0) {
+        ssh_channel_close(channel);
+        ssh_channel_free(channel);
+        const char *err = ssh_get_error(m_session);
+        throw std::runtime_error(err);
+    }
+    return arch;
 }
-void SshHandler::setPort(int port) {
-    m_port = std::move(port);
-}
-void SshHandler::setPassword(std::string&& password) {
-    m_password = std::move(password);
-}
-int SshHandler::exec_remote_command(std::string command)
+
+int SshHandler::exec_remote_commands(std::vector<std::string> commands)
 {
     ssh_channel channel;
     int rc;
     char buffer[256];
     int nbytes;
-
-    channel = ssh_channel_new(m_session);
-    if (channel == NULL) {
-        std::cout << "channel NULL\n";
-        return SSH_ERROR;
-    }
     
-    rc = ssh_channel_open_session(channel);
-    if (rc != SSH_OK) {
-      ssh_channel_free(channel);
-      return rc;
-    }
-    
-    rc = ssh_channel_request_exec(channel, command.c_str());
-    if (rc != SSH_OK)
-    {
-      ssh_channel_close(channel);
-      ssh_channel_free(channel);
-      return rc;
-    }
-  
-    nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
-    while (nbytes > 0)
-    {
-      if (write(1, buffer, nbytes) != (unsigned int) nbytes)
-      {
-        ssh_channel_close(channel);
-        ssh_channel_free(channel);
-        return SSH_ERROR;
-      }
-      nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
-    }
-  
-    if (nbytes < 0)
-    {
-      ssh_channel_close(channel);
-      ssh_channel_free(channel);
-      return SSH_ERROR;
+    channel = initChannel();
+    for (const auto& c : commands) {
+        rc = ssh_channel_request_exec(channel, c.c_str());
+        if (rc != SSH_OK) {
+            ssh_channel_close(channel);
+            ssh_channel_free(channel);
+            return rc;
+        }
+      
+        nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
+        while (nbytes > 0) {
+            if (write(1, buffer, nbytes) != (unsigned int) nbytes) {
+                ssh_channel_close(channel);
+                ssh_channel_free(channel);
+                return SSH_ERROR;
+            }
+            nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
+        }
+      
+        if (nbytes < 0) {
+            ssh_channel_close(channel);
+            ssh_channel_free(channel);
+            return SSH_ERROR;
+        }
     }
   
-    ssh_channel_send_eof(channel);
-    ssh_channel_close(channel);
-    ssh_channel_free(channel);
+    CLOSE_CHANNEL(channel);
   
     return SSH_OK;
 }
@@ -147,6 +179,105 @@ bool SshHandler::verify_knownhost(ssh_session session)
     return true;
 }
 
+int SshHandler::exec_remote_command(std::string command)
+{
+    ssh_channel channel;
+    int rc;
+    char buffer[256];
+    int nbytes;
+
+    channel = ssh_channel_new(m_session);
+    if (channel == NULL) {
+        const char *err = ssh_get_error(m_session);
+        std::cerr << "Error: " << err << "\n";
+        return SSH_ERROR;
+    }
+    
+    rc = ssh_channel_open_session(channel);
+    if (rc != SSH_OK) {
+      ssh_channel_free(channel);
+      return rc;
+    }
+    
+    rc = ssh_channel_request_exec(channel, command.c_str());
+    if (rc != SSH_OK)
+    {
+      ssh_channel_close(channel);
+      ssh_channel_free(channel);
+      return rc;
+    }
+  
+    nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
+    while (nbytes > 0)
+    {
+      if (write(1, buffer, nbytes) != (unsigned int) nbytes)
+      {
+        ssh_channel_close(channel);
+        ssh_channel_free(channel);
+        return SSH_ERROR;
+      }
+      nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
+    }
+  
+    if (nbytes < 0)
+    {
+      ssh_channel_close(channel);
+      ssh_channel_free(channel);
+      return SSH_ERROR;
+    }
+  
+    ssh_channel_close(channel);
+    ssh_channel_send_eof(channel);
+    ssh_channel_free(channel);
+  
+    return SSH_OK;
+}
+
+bool SshHandler::sshConnection()
+{
+    m_session = ssh_new();
+    if (!m_session) {
+        std::cerr << "ssh failed\n";
+        return false;
+    }
+
+    std::string url = m_user + "@" + m_host;
+    std::cout << "url: " << url << std::endl;
+    ssh_options_set(m_session, SSH_OPTIONS_HOST, url.c_str());
+    ssh_options_set(m_session, SSH_OPTIONS_PORT, &m_port);
+    
+    int rc = ssh_connect(m_session);
+    if (rc != SSH_OK) {
+        std::cerr << "Error connecting to " << url << ": " << ssh_get_error(m_session) << "\n";
+        ssh_free(m_session);
+        return false;
+    }
+
+    if (!verify_knownhost(m_session))
+    {
+        ssh_disconnect(m_session);
+        ssh_free(m_session);
+        return false;
+    }
+
+    if (m_password != "") {
+        rc = ssh_userauth_password(m_session, NULL, m_password.c_str());
+    } else {
+        rc = ssh_userauth_publickey_auto(m_session, NULL, NULL);
+    }
+
+    if (rc != SSH_AUTH_SUCCESS)
+    {
+      std::cerr << "Error authenticating with password: " << ssh_get_error(m_session) << "\n";
+      ssh_disconnect(m_session);
+      ssh_free(m_session);
+      return false;
+    }
+
+    std::cout << "ssh succesfully connected\n";
+    return true;
+}
+
 bool SshHandler::sshConnection(const std::string & url, int port)
 {
     m_session = ssh_new();
@@ -173,8 +304,6 @@ bool SshHandler::sshConnection(const std::string & url, int port)
     }
 
     std::cout << "ssh succesfully connected\n";
-
-    exec_remote_command("ls -l");
     return true;
 }
 

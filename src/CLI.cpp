@@ -168,11 +168,11 @@ void CLI::registerCommandFactories() {
     m_commandFactories.resize(static_cast<size_t>(Commands::SIZE));
 
     m_commandFactories[static_cast<size_t>(Commands::HOST)] =
-        [&](std::unique_ptr<SshHandler>& sshHandler) { (void)sshHandler; return std::make_unique<Host>(); };
+        [&](std::unique_ptr<SshHandler>& sshHandler) { return std::make_unique<Host>(std::move(sshHandler)); };
     m_commandFactories[static_cast<size_t>(Commands::BUILD)] =
         [&](std::unique_ptr<SshHandler>& sshHandler) { (void)sshHandler; return std::make_unique<Build>(); };
     m_commandFactories[static_cast<size_t>(Commands::SETUP)] =
-        [&](std::unique_ptr<SshHandler>& sshHandler) { (void)sshHandler; return std::make_unique<Setup>(std::move(sshHandler)); };
+        [&](std::unique_ptr<SshHandler>& sshHandler) { return std::make_unique<Setup>(std::move(sshHandler)); };
     m_commandFactories[static_cast<size_t>(Commands::WEBSERVER)] =
         [&](std::unique_ptr<SshHandler>& sshHandler) { return std::make_unique<Webserver>(std::move(sshHandler)); };
 }

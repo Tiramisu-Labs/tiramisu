@@ -10,17 +10,22 @@
 
 #include "ICommand.hpp"
 // #include "Utils.hpp"
+class SshHandler;
 
 class Host : public ICommand {
     private:
-    Command_t command;
+    std::unique_ptr<SshHandler> m_sshHandler;
 
     void add(std::unordered_map<std::string, std::string> options);
     void list();
-    std::map<std::string, std::string> getHostSpec(std::string& alias);
+    void test(const std::unordered_map<std::string, std::string>& options);
+    inline void fillSshHandler(const std::unordered_map<std::string, std::string>& options);
+    std::map<std::string, std::string> getHostSpec(const std::string& alias);
+    std::string getArch(const std::unordered_map<std::string, std::string>& options);
 
     public:
     Host();
+    Host(std::unique_ptr<SshHandler>&& handler);
     // override
     ~Host() override {};
     std::string getName() const override;
@@ -34,15 +39,18 @@ class Host : public ICommand {
         EXPORT,
         IMPORT,
         DELETE,
+        TEST,
         SIZE
     };
 
     std::map<std::string, Commands> host_cmds = {
         {"add", Commands::ADD},
         {"list", Commands::LIST},
+        {"ls", Commands::LIST},
         {"export", Commands::EXPORT},
         {"import", Commands::IMPORT},
         {"delete", Commands::DELETE},
+        {"test", Commands::TEST},
     };
 
     
