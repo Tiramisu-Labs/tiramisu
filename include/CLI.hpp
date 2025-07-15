@@ -20,6 +20,7 @@ enum class Commands
     BUILD,
     DEPLOY,
     WEBSERVER,
+    INSTALL,
     SETUP,
     HELP,
     UNISTALL,

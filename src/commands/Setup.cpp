@@ -27,7 +27,7 @@ void Setup::execute(const Command_t & command) {
     std::cout << "Preparing the remote host\n";
     try {
         const auto alias_it = options.find("--alias");
-        if (alias_it == options.end()) throw std::runtime_error("alias flag missing!");
+        if (alias_it == options.end()) throw std::runtime_error("alias option is missing!");
         std::string web_server = "nginx";
         std::string version = "1.28.0";
         const auto server_it = options.find("--web-server");
@@ -35,7 +35,8 @@ void Setup::execute(const Command_t & command) {
         const auto version_it = options.find("--version");
         if (version_it != options.end()) version = version_it->second;
         std::cout << "installing " << web_server << " on remote server. Version: " << version << "\n";
-        m_sshHandler->upload("install_nginx.sh");
+        m_sshHandler->fillSshHandler(alias_it->second);
+        m_sshHandler->upload("scripts/install_nginx.sh");
         m_sshHandler->exec_remote_commands({
             "chmod +x install_nginx.sh && bash install_nginx.sh",
             "rm install_nginx.sh"

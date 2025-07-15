@@ -250,6 +250,64 @@ void SshHandler::upload(const std::string path)
       sftp_free(sftp);
       exit(1);
     }
+    
+    sftp_file file = sftp_open(sftp, path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IWUSR);
+    if (file == NULL)
+    {
+      fprintf(stderr, "Can't open file for writing: %s\n", ssh_get_error(m_session));
+      exit(1);
+    }
+
+    std::ifstream fin(path, std::ios::binary);
+
+    constexpr size_t max_xfer_buf_size = 10240;
+    while (fin)
+    {
+        char buffer[max_xfer_buf_size];
+        fin.read(buffer, sizeof(buffer));
+        if (fin.gcount() > 0)
+        {
+            nwritten = sftp_write(file, buffer, fin.gcount());
+            if (nwritten != fin.gcount())
+            {
+                fprintf(stderr, "Error writing to file: %s\n", ssh_get_error(m_session));
+                sftp_close(file);
+                exit(1);
+            }
+        }
+    }
+
+    rc = sftp_close(file);
+    if (rc != SSH_OK)
+    {
+      fprintf(stderr, "Can't close the written file: %s\n", ssh_get_error(m_session));
+      exit(1);
+    }
+
+    sftp_free(sftp);
+}
+
+void SshHandler::serviceUpload(const std::string path)
+{
+    std::cout << path << "\n";
+    int rc, nwritten;
+    
+    sftp_session sftp;
+    sshConnect();
+    sftp = sftp_new(m_session);
+    if (sftp == NULL)
+    {
+      fprintf(stderr, "Error allocating SFTP session: %s\n", ssh_get_error(m_session));
+      exit(1);
+    }
+  
+    rc = sftp_init(sftp);
+    if (rc != SSH_OK)
+    {
+      fprintf(stderr, "Error initializing SFTP session: code %d.\n", sftp_get_error(sftp));
+      sftp_free(sftp);
+      exit(1);
+    }
 
     if (path.find('/') != std::string::npos) {
         std::string cpy_path = path;

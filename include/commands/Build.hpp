@@ -5,6 +5,7 @@
 
 enum class Extensions
 {
+    INVALID,
     C,
     CPP,
     RS,
@@ -12,8 +13,7 @@ enum class Extensions
     TS,
     GO,
     PY,
-    INVALID
-
+    WASM
 };
 
 class Build : public ICommand {
@@ -25,6 +25,7 @@ class Build : public ICommand {
     std::string getName() const override;
     std::string getHelp() const override;
     void execute(const Command_t& command) override;
+    bool checkExtensionCompiler(const std::string ext);
 
     const std::unordered_map<std::string, Extensions> extensionsMap_ {
         {"c", Extensions::C},
@@ -34,5 +35,6 @@ class Build : public ICommand {
         {"ts", Extensions::TS},
         {"go", Extensions::GO},
         {"py", Extensions::PY},
+        {"wasm", Extensions::WASM},
     };
 };

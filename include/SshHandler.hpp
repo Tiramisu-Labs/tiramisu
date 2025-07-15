@@ -38,6 +38,7 @@ class SshHandler
         int exec_remote_commands(std::vector<std::string> commands);
 
         void upload(const std::string path);
+        void serviceUpload(const std::string path);
 
         bool isConnected() { return m_session != nullptr; }
 };

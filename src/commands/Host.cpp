@@ -1,5 +1,6 @@
 #include "../../include/commands/Host.hpp"
 #include "../../include/SshHandler.hpp"
+
 Host::Host() {}
 Host::Host(std::unique_ptr<SshHandler>&& handler) : m_sshHandler(std::move(handler)) {}
 

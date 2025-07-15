@@ -6,6 +6,7 @@
 #include "../include/commands/Host.hpp"
 #include "../include/commands/Setup.hpp"
 #include "../include/commands/Build.hpp"
+#include "../include/commands/Install.hpp"
 
 #include <algorithm>
 #include <ranges>
@@ -28,6 +29,7 @@ static std::map<std::string, Commands> commandsMap = {
     {"host", Commands::HOST},
     {"build", Commands::BUILD},
     {"deploy", Commands::DEPLOY},
+    {"install", Commands::INSTALL},
     {"setup", Commands::SETUP},
     {"help", Commands::HELP}
 };
@@ -171,6 +173,8 @@ void CLI::registerCommandFactories() {
         [&](std::unique_ptr<SshHandler>& sshHandler) { return std::make_unique<Host>(std::move(sshHandler)); };
     m_commandFactories[static_cast<size_t>(Commands::BUILD)] =
         [&](std::unique_ptr<SshHandler>& sshHandler) { (void)sshHandler; return std::make_unique<Build>(); };
+    m_commandFactories[static_cast<size_t>(Commands::INSTALL)] =
+        [&](std::unique_ptr<SshHandler>& sshHandler) { (void)sshHandler; return std::make_unique<Install>(); };
     m_commandFactories[static_cast<size_t>(Commands::SETUP)] =
         [&](std::unique_ptr<SshHandler>& sshHandler) { return std::make_unique<Setup>(std::move(sshHandler)); };
     m_commandFactories[static_cast<size_t>(Commands::WEBSERVER)] =
