@@ -19,9 +19,8 @@ class Host : public ICommand {
     void add(std::unordered_map<std::string, std::string> options);
     void list();
     void test(const std::unordered_map<std::string, std::string>& options);
-    inline void fillSshHandler(const std::unordered_map<std::string, std::string>& options);
-    std::map<std::string, std::string> getHostSpec(const std::string& alias);
-    std::string getArch(const std::unordered_map<std::string, std::string>& options);
+    void test();
+    std::string getArch() const;
 
     public:
     Host();
@@ -34,6 +33,7 @@ class Host : public ICommand {
 
     enum class Commands {
         INVALID,
+        HELP,
         ADD,
         LIST,
         EXPORT,

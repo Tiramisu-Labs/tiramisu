@@ -147,8 +147,8 @@ void CLI::executeSetEnv(const std::string& key, const std::string& value) {
 
 void CLI::displayHelp(const std::string& command_name) {
     if (command_name.empty()) {
-        std::cout << "CLI Usage:\n";
-        std::cout << "  host <host> <user> <password> <alias> [--host <h>] [--user <u>] [--password <p>] [--alias <a>]\n";
+        std::cout << "usage:\n";
+        std::cout << "  host [--host=<ip/DNS>] [--user=<user>] [--password=<password>] [--alias=<alias>]\n";
         std::cout << "  setup <alias>\n";
         std::cout << "  ssh <command_string>\n";
         std::cout << "  set_env <key> <value>\n";

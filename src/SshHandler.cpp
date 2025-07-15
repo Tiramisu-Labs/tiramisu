@@ -9,10 +9,7 @@ SshHandler::SshHandler()
     : m_host(""), m_user(""), m_port(22), m_password("") {}
 
 SshHandler::~SshHandler() {
-    if (m_session) {
-        ssh_disconnect(m_session);
-        ssh_free(m_session);
-    }
+    sshDisconnect();
 }
 
 void SshHandler::setHost(std::string&& host) { m_host = std::move(host); }
@@ -24,7 +21,7 @@ ssh_channel SshHandler::initChannel() {
     ssh_channel channel;
     int rc;
 
-    if (!sshConnection()) {
+    if (!sshConnect()) {
         const char *err = ssh_get_error(m_session);
         throw std::runtime_error(err);
     }
@@ -179,61 +176,7 @@ bool SshHandler::verify_knownhost(ssh_session session)
     return true;
 }
 
-int SshHandler::exec_remote_command(std::string command)
-{
-    ssh_channel channel;
-    int rc;
-    char buffer[256];
-    int nbytes;
-
-    channel = ssh_channel_new(m_session);
-    if (channel == NULL) {
-        const char *err = ssh_get_error(m_session);
-        std::cerr << "Error: " << err << "\n";
-        return SSH_ERROR;
-    }
-    
-    rc = ssh_channel_open_session(channel);
-    if (rc != SSH_OK) {
-      ssh_channel_free(channel);
-      return rc;
-    }
-    
-    rc = ssh_channel_request_exec(channel, command.c_str());
-    if (rc != SSH_OK)
-    {
-      ssh_channel_close(channel);
-      ssh_channel_free(channel);
-      return rc;
-    }
-  
-    nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
-    while (nbytes > 0)
-    {
-      if (write(1, buffer, nbytes) != (unsigned int) nbytes)
-      {
-        ssh_channel_close(channel);
-        ssh_channel_free(channel);
-        return SSH_ERROR;
-      }
-      nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
-    }
-  
-    if (nbytes < 0)
-    {
-      ssh_channel_close(channel);
-      ssh_channel_free(channel);
-      return SSH_ERROR;
-    }
-  
-    ssh_channel_close(channel);
-    ssh_channel_send_eof(channel);
-    ssh_channel_free(channel);
-  
-    return SSH_OK;
-}
-
-bool SshHandler::sshConnection()
+bool SshHandler::sshConnect()
 {
     m_session = ssh_new();
     if (!m_session) {
@@ -278,123 +221,12 @@ bool SshHandler::sshConnection()
     return true;
 }
 
-bool SshHandler::sshConnection(const std::string & url, int port)
+void SshHandler::sshDisconnect()
 {
-    m_session = ssh_new();
-    if (!m_session) {
-        std::cerr << "ssh failed\n";
-        return false;
-    }
-
-    ssh_options_set(m_session, SSH_OPTIONS_HOST, url.c_str());
-    ssh_options_set(m_session, SSH_OPTIONS_PORT, &port);
-    
-    int rc = ssh_connect(m_session);
-    if (rc != SSH_OK) {
-        std::cerr << "Error connecting to " << url << ": " << ssh_get_error(m_session) << "\n";
-        ssh_free(m_session);
-        return false;
-    }
-
-    if (!verify_knownhost(m_session))
-    {
+    if (m_session) {
         ssh_disconnect(m_session);
         ssh_free(m_session);
-        return false;
     }
-
-    std::cout << "ssh succesfully connected\n";
-    return true;
-}
-
-bool SshHandler::sshConnection(const std::string& host, const std::string& user, int port, const std::string password)
-{
-    m_session = ssh_new();
-    std::cout << "sshConnection\n";
-    if (!m_session) {
-        std::cerr << "ssh failed\n";
-        return false;
-    }
-    auto url = user + "@" + host;
-    std::cout << "url: " << url << std::endl;
-    ssh_options_set(m_session, SSH_OPTIONS_HOST, url.c_str());
-    ssh_options_set(m_session, SSH_OPTIONS_PORT, &port);
-
-    int rc = ssh_connect(m_session);
-    if (rc != SSH_OK) {
-        std::cerr << "Error connecting to " << url << ": " << ssh_get_error(m_session) << "\n";
-        ssh_free(m_session);
-        return false;
-    }
-
-    if (!verify_knownhost(m_session))
-    {
-        ssh_disconnect(m_session);
-        ssh_free(m_session);
-        return false;
-    }
-
-    if (password != "") {
-        rc = ssh_userauth_password(m_session, NULL, password.c_str());
-    } else {
-        rc = ssh_userauth_publickey_auto(m_session, NULL, NULL);
-    }
-
-    if (rc != SSH_AUTH_SUCCESS)
-    {
-      std::cerr << "Error authenticating with password: " << ssh_get_error(m_session) << "\n";
-      ssh_disconnect(m_session);
-      ssh_free(m_session);
-      return false;
-    }
-  
-    // code here
-    std::cout << "ssh succesfully connected\n";
-    return true;
-}
-
-bool SshHandler::sshConnection(const std::string & url, const std::string & password, int port)
-{
-    m_session = ssh_new();
-    if (!m_session) {
-        std::cerr << "ssh failed\n";
-        return false;
-    }
-
-    ssh_options_set(m_session, SSH_OPTIONS_HOST, url.c_str());
-    ssh_options_set(m_session, SSH_OPTIONS_PORT, &port);
-
-    int rc = ssh_connect(m_session);
-    if (rc != SSH_OK) {
-        std::cerr << "Error connecting to " << url << ": " << ssh_get_error(m_session) << "\n";
-        ssh_free(m_session);
-        return false;
-    }
-
-    if (!verify_knownhost(m_session))
-    {
-        ssh_disconnect(m_session);
-        ssh_free(m_session);
-        return false;
-    }
-
-    if (password != "") {
-        rc = ssh_userauth_password(m_session, NULL, password.c_str());
-    } else {
-        rc = ssh_userauth_publickey_auto(m_session, NULL, NULL);
-    }
-
-    if (rc != SSH_AUTH_SUCCESS)
-    {
-      std::cerr << "Error authenticating with password: " << ssh_get_error(m_session) << "\n";
-      ssh_disconnect(m_session);
-      ssh_free(m_session);
-      return false;
-    }
-  
-    // code here
-    std::cout << "ssh succesfully connected\n";
-    return true;
 }
 
 void SshHandler::upload(const std::string path)
@@ -403,7 +235,7 @@ void SshHandler::upload(const std::string path)
     int rc, nwritten;
     
     sftp_session sftp;
-    
+    sshConnect();
     sftp = sftp_new(m_session);
     if (sftp == NULL)
     {
@@ -471,4 +303,53 @@ void SshHandler::upload(const std::string path)
     }
 
     sftp_free(sftp);
+}
+
+std::map<std::string, std::string> SshHandler::getHostSpec(const std::string& alias) {
+    std::ifstream hosts_file(std::string(std::getenv("HOME")) + "/.config/tiramisu/hosts.yaml");
+    if (!hosts_file.is_open()) {
+        std::cerr << "Warning: could not open hosts.yaml\n";
+        exit(-1);
+    }
+    std::string line;
+    std::string to_find = alias + ":";
+    std::map<std::string, std::string> ret;
+    while (std::getline(hosts_file, line)) {
+        if (line == to_find) {
+            while (std::getline(hosts_file, line)) {
+                if (line.length() == 0) {
+                    hosts_file.close();
+                    return ret;
+                }
+                ret.insert({line.substr(0, line.find(':')), line.substr(line.find(": ") + 2)});
+            }
+        }
+    }
+    hosts_file.close();
+    return ret;
+}
+
+void SshHandler::fillSshHandler(const std::string& alias)
+{
+    const auto host_file = getHostSpec(alias);
+    for (auto& [x, y] : host_file) {
+        std::cout << x << " " << y << "\n";
+    }
+
+    auto host = host_file.find("  host")->second;
+    auto password = host_file.find("  password")->second;
+    auto user = host_file.find("  user")->second;
+    auto port = host_file.find("  port")->second;
+    m_host = std::move(host);
+    m_password = std::move(password);
+    m_user = std::move(user);
+    m_port = std::atoi(port.c_str());
+}
+
+void SshHandler::fillSshHandler(std::string host, std::string password, std::string user, std::string port)
+{
+    m_host = std::move(host);
+    m_password = std::move(password);
+    m_user = std::move(user);
+    m_port = std::atoi(port.c_str());
 }

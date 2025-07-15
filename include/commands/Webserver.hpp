@@ -50,5 +50,5 @@ class Webserver : public ICommand {
     std::string getName() const override;
     std::string getHelp() const override;
     void execute(const Command_t& command) override;
-    void upload(const std::string address, const std::string password, int port, const std::string path);
+    void upload(std::string host, std::string password, std::string user, std::string port, std::string path);
 };

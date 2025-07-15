@@ -8,7 +8,9 @@ std::string Host::getName() const { return "host"; }
 std::string Host::getHelp() const {
     return "Usage: host <action> [arguments...]\n"
         "  Manages host configurations.\n"
-        "  Actions: list, add <hostname> <ip>, remove <hostname>";
+        "  host add [--host=<IP/DNS>] [--user=<user>] [--password=<password>] [--port=<port>] [--alias=<alias>]: add a new host to the hosts list"
+        "  host list: list stored hosts"
+        "  host test [--alias=<alias>]: test connection with the specified host";
 }
 
 void Host::execute(const Command_t& command) {
@@ -16,6 +18,7 @@ void Host::execute(const Command_t& command) {
     auto const sub_command = command.arguments.front();
     switch (host_cmds[sub_command])
     {
+        case Commands::HELP: getHelp(); break;
         case Commands::ADD: add(command.options); break;
         case Commands::LIST: list(); break;
         case Commands::TEST: test(command.options); break;
@@ -66,6 +69,15 @@ void Host::add(std::unordered_map<std::string, std::string> options) {
         return ;
     }
     
+    m_sshHandler->fillSshHandler(host, password, user, port);
+    try {
+        test();
+    } catch (const std::runtime_error& e) {
+        std::cerr << "Error: " << e.what() << "\n";
+        exit(1);
+    }
+
+    std::string arch = getArch();
     std::string hosts_path = std::string(std::getenv("HOME")) + "/.config/tiramisu";
     if (!std::filesystem::exists(hosts_path)) {
         std::cout << "Configuration directory does not exists: " << hosts_path << std::endl;
@@ -84,9 +96,11 @@ void Host::add(std::unordered_map<std::string, std::string> options) {
         "host: " << host << "\n  " <<
         "user: " << user << "\n  " <<
         "password: " << password << "\n  " <<
-        "port: " << port << "\n\n";
+        "port: " << port << "\n  " <<
+        "arch: " << arch << "\n\n";
     hosts_file.close();
 }
+
 void Host::list() {
     std::ifstream hosts_file(std::string(std::getenv("HOME")) + "/.config/tiramisu/hosts.yaml");
     if (!hosts_file.is_open()) {
@@ -100,67 +114,26 @@ void Host::list() {
     hosts_file.close();
 }
 
-std::map<std::string, std::string> Host::getHostSpec(const std::string& alias) {
-    std::ifstream hosts_file(std::string(std::getenv("HOME")) + "/.config/tiramisu/hosts.yaml");
-    if (!hosts_file.is_open()) {
-        std::cerr << "Warning: could not open hosts.yaml\n";
-        exit(-1);
-    }
-    std::string line;
-    std::string to_find = alias + ":";
-    std::map<std::string, std::string> ret;
-    while (std::getline(hosts_file, line)) {
-        if (line == to_find) {
-            while (std::getline(hosts_file, line)) {
-                if (line.length() == 0) {
-                    hosts_file.close();
-                    return ret;
-                }
-                ret.insert({line.substr(0, line.find(':')), line.substr(line.find(": ") + 2)});
-            }
-        }
-    }
-    hosts_file.close();
-    return ret;
-}
+std::string Host::getArch() const { return m_sshHandler->getArch(); }
 
-std::string Host::getArch(const std::unordered_map<std::string, std::string>& options)
-{
-    try {
-        fillSshHandler(options);
-    } catch (const std::runtime_error& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+void Host::test()
+{   
+    if (m_sshHandler->sshConnect()) {
+        m_sshHandler->sshDisconnect();
+    } else {
+        throw std::runtime_error("remote host specs wrongs!");
     }
-    return m_sshHandler->getArch();
 }
 
 void Host::test(const std::unordered_map<std::string, std::string> &options)
 {
+    const auto alias = options.find("--alias");
+    if (alias == options.end()) throw std::runtime_error("alias not found");
     try {
-        fillSshHandler(options);
+        m_sshHandler->fillSshHandler(alias->second);
     } catch (const std::runtime_error& e) {
         std::cerr << "Error: " << e.what() << std::endl;
     }
     
     m_sshHandler->exec_remote_commands({"arch"});
-}
-
-inline void Host::fillSshHandler(const std::unordered_map<std::string, std::string> &options)
-{
-    const auto alias = options.find("--alias");
-    if (alias == options.end()) throw std::runtime_error("alias not found");
-    std::cout << "alias: " + alias->second << "\n";
-    const auto host_file = getHostSpec(alias->second);
-    for (auto& [x, y] : host_file) {
-        std::cout << x << " " << y << "\n";
-    }
-
-    auto host = host_file.find("  host")->second;
-    auto password = host_file.find("  password")->second;
-    auto user = host_file.find("  user")->second;
-    auto port = host_file.find("  port")->second;
-    m_sshHandler->setHost(std::move(host));
-    m_sshHandler->setPassword(std::move(password));
-    m_sshHandler->setUser(std::move(user));
-    m_sshHandler->setPort(std::atoi(port.c_str()));
 }

@@ -62,8 +62,10 @@ void Webserver::execute(const Command_t& command) {
     }
 }
 
-void Webserver::upload(const std::string address, const std::string password, int port, std::string path)
+void Webserver::upload(std::string host, std::string password, std::string user, std::string port, std::string path)
 {
-    m_sshHandler->sshConnection(address, password, port);
+    m_sshHandler->fillSshHandler(host, password, user, port);
+    m_sshHandler->sshConnect();
     m_sshHandler->upload(path);
+    m_sshHandler->sshDisconnect();
 }
