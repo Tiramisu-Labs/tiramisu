@@ -15,7 +15,7 @@ std::string Host::getHelp() const {
 }
 
 void Host::execute(const Command_t& command) {
-    if (command.arguments.size() == 0) throw std::runtime_error("command missing\n" + getHelp());
+    if (command.arguments.size() == 0) throw std::runtime_error(getHelp());
     auto const sub_command = command.arguments.front();
     switch (host_cmds[sub_command])
     {
@@ -89,7 +89,7 @@ void Host::add(std::unordered_map<std::string, std::string> options) {
             return ;
         }
     }
-    std::ofstream hosts_file(std::string(std::getenv("HOME")) + "/.config/tiramisu/hosts.yaml");
+    std::ofstream hosts_file(std::string(std::getenv("HOME")) + "/.config/tiramisu/hosts.yaml", std::ios_base::app);
     if (!hosts_file.is_open()) {
         std::cerr << "An errror accured while opening file ~/.tiramisu/config/hosts.yaml\n";
     }
@@ -136,5 +136,5 @@ void Host::test(const std::unordered_map<std::string, std::string> &options)
         std::cerr << "Error: " << e.what() << std::endl;
     }
     
-    m_sshHandler->exec_remote_commands({"arch"});
+    m_sshHandler->exec_remote_command({"arch"});
 }

@@ -35,7 +35,7 @@ class SshHandler
         void sshDisconnect();
 
         bool verify_knownhost(ssh_session session);
-        int exec_remote_commands(std::vector<std::string> commands);
+        int exec_remote_command(const std::string& command);
 
         void upload(const std::string path);
         void serviceUpload(const std::string path);

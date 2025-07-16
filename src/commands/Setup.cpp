@@ -36,12 +36,18 @@ void Setup::execute(const Command_t & command) {
         if (version_it != options.end()) version = version_it->second;
         std::cout << "installing " << web_server << " on remote server. Version: " << version << "\n";
         m_sshHandler->fillSshHandler(alias_it->second);
-        m_sshHandler->upload("scripts/install_nginx.sh");
-        m_sshHandler->exec_remote_commands({
-            "chmod +x install_nginx.sh && bash install_nginx.sh",
-            "rm install_nginx.sh"
-        });
+        m_sshHandler->upload("install_nginx.sh");
+        m_sshHandler->exec_remote_command("chmod 777 install_nginx.sh && bash install_nginx.sh " + alias_it->second);
+        m_sshHandler->exec_remote_command("rm install_nginx.sh");
+        m_sshHandler->exec_remote_command("rm install_nginx.sh");
+        m_sshHandler->exec_remote_command("rm nginx-1.28.0");
+        m_sshHandler->exec_remote_command("rm nginx-1.28.0.tar.gz");
     } catch (const std::runtime_error& e) {
         std::cerr << "Error: " << e.what() << "\n";
     }
 }
+
+// ./configure: error: SSL modules require the OpenSSL library.
+// You can either do not enable the modules, or install the OpenSSL library
+// into the system, or build the OpenSSL library statically from the source
+// with nginx by using --with-openssl=<path> option.

@@ -72,7 +72,7 @@ std::string SshHandler::getArch()
     return arch;
 }
 
-int SshHandler::exec_remote_commands(std::vector<std::string> commands)
+int SshHandler::exec_remote_command(const std::string& command)
 {
     ssh_channel channel;
     int rc;
@@ -80,29 +80,28 @@ int SshHandler::exec_remote_commands(std::vector<std::string> commands)
     int nbytes;
     
     channel = initChannel();
-    for (const auto& c : commands) {
-        rc = ssh_channel_request_exec(channel, c.c_str());
-        if (rc != SSH_OK) {
-            ssh_channel_close(channel);
-            ssh_channel_free(channel);
-            return rc;
-        }
-      
-        nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
-        while (nbytes > 0) {
-            if (write(1, buffer, nbytes) != (unsigned int) nbytes) {
-                ssh_channel_close(channel);
-                ssh_channel_free(channel);
-                return SSH_ERROR;
-            }
-            nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
-        }
-      
-        if (nbytes < 0) {
+    
+    rc = ssh_channel_request_exec(channel, command.c_str());
+    if (rc != SSH_OK) {
+        ssh_channel_close(channel);
+        ssh_channel_free(channel);
+        return rc;
+    }
+    
+    nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
+    while (nbytes > 0) {
+        if (write(1, buffer, nbytes) != (unsigned int) nbytes) {
             ssh_channel_close(channel);
             ssh_channel_free(channel);
             return SSH_ERROR;
         }
+        nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
+    }
+    
+    if (nbytes < 0) {
+        ssh_channel_close(channel);
+        ssh_channel_free(channel);
+        return SSH_ERROR;
     }
   
     CLOSE_CHANNEL(channel);
@@ -185,7 +184,6 @@ bool SshHandler::sshConnect()
     }
 
     std::string url = m_user + "@" + m_host;
-    std::cout << "url: " << url << std::endl;
     ssh_options_set(m_session, SSH_OPTIONS_HOST, url.c_str());
     ssh_options_set(m_session, SSH_OPTIONS_PORT, &m_port);
     
@@ -217,7 +215,6 @@ bool SshHandler::sshConnect()
       return false;
     }
 
-    std::cout << "ssh succesfully connected\n";
     return true;
 }
 

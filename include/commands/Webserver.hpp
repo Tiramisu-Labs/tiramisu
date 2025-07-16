@@ -14,13 +14,13 @@ namespace webserver
         INSTALL,
         START,
         RESTART,
-        RELOAD,
-        SHUTDOWN,
+        STOP,
         LOGS,
         STATUS,
         CONFIGURE,
         UNISTALL,
         TEST,
+        DEPLOY,
         SIZE
     };
 }; // namespace webserver
@@ -34,13 +34,13 @@ class Webserver : public ICommand {
         {"install", webserver::Commands::INSTALL},
         {"start", webserver::Commands::START},
         {"restart", webserver::Commands::RESTART},
-        {"reload", webserver::Commands::RELOAD},
-        {"shutdown", webserver::Commands::SHUTDOWN},
+        {"stop", webserver::Commands::STOP},
         {"logs", webserver::Commands::LOGS},
         {"status", webserver::Commands::STATUS},
         {"configure", webserver::Commands::CONFIGURE},
         {"unistall", webserver::Commands::UNISTALL},
         {"test", webserver::Commands::TEST},
+        {"deploy", webserver::Commands::DEPLOY},
     };
 
     public:
@@ -51,4 +51,5 @@ class Webserver : public ICommand {
     std::string getHelp() const override;
     void execute(const Command_t& command) override;
     void upload(std::string host, std::string password, std::string user, std::string port, std::string path);
+    void deploy(const Command_t& command);
 };

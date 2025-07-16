@@ -31,6 +31,7 @@ static std::map<std::string, Commands> commandsMap = {
     {"deploy", Commands::DEPLOY},
     {"install", Commands::INSTALL},
     {"setup", Commands::SETUP},
+    {"webserver", Commands::WEBSERVER},
     {"help", Commands::HELP}
 };
 

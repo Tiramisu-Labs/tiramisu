@@ -2,6 +2,7 @@
 
 #include "../../include/SshHandler.hpp"
 #include <iostream>
+#include "Webserver.hpp"
 
 Webserver::Webserver() {}
 Webserver::Webserver(std::unique_ptr<SshHandler>&& handler) : m_sshHandler(std::move(handler)) {}
@@ -13,45 +14,40 @@ std::string Webserver::getHelp() const {
 }
 
 void Webserver::execute(const Command_t& command) {
-    std::cout << command.name << std::endl;
+    std::cout << command.arguments.front() << std::endl;
 
-    switch (commandsMap[command.name])
+    switch (commandsMap[command.arguments.front()])
     {
     case webserver::Commands::INVALID:
         std::cout << "case unrecognized\n";
         exit(1);
-    // case webserver::Commands::LOGIN:
-    // {
-    //     std::cout << "case login\n";
-    //     auto password_it = std::find_if(
-    //         flags.begin(),
-    //         flags.end(),
-    //         [] (Token & t) { return t.getValue() == "--password"; }
-    //     );
-    //     std::string password = "";
-    //     if (password_it != flags.end()) {
-    //         password = password_it->getValue();
-    //     }
-    //     std::cout << "password " + password + " address " + address << "\n";
-    //     handler->sshConnection(address, password, port);
-    //     break;
-    // }
-    case webserver::Commands::START:
-        std::cout << "case start\n";
+    case webserver::Commands::START: { // start remote server
+        const auto alias_it = command.options.find("--alias");
+        if (alias_it == command.options.end()) throw std::runtime_error("alias option is missing!");
+        m_sshHandler->fillSshHandler(alias_it->second);
+        m_sshHandler->exec_remote_command("$HOME/nginx/sbin/nginx");
         break;
-    // case webserver::Commands::RUN:
-    // {
-    //     std::cout << "case run\n";
-    //     std::ifstream file("config/config.yaml");
-    //     std::string line;
-    //     while(std::getline(file, line)) {
-    //         std::cout << line << "\n";
-    //     }
-    //     break;
-    // }
-    case webserver::Commands::RELOAD:
-        std::cout << "case reload\n";
+    }
+    case webserver::Commands::STOP: { // stop remote server
+        const auto alias_it = command.options.find("--alias");
+        if (alias_it == command.options.end()) throw std::runtime_error("alias option is missing!");
+        m_sshHandler->fillSshHandler(alias_it->second);
+        m_sshHandler->exec_remote_command("$HOME/nginx/sbin/nginx -s stop");
         break;
+    }
+    case webserver::Commands::RESTART: { // restart remote server
+        const auto alias_it = command.options.find("--alias");
+        if (alias_it == command.options.end()) throw std::runtime_error("alias option is missing!");
+        m_sshHandler->fillSshHandler(alias_it->second);
+        std::cout << "stopping nginx...\n";
+        m_sshHandler->exec_remote_command("$HOME/nginx/sbin/nginx -s stop");
+        std::cout << "restarting nginx...\n";
+        m_sshHandler->exec_remote_command("$HOME/nginx/sbin/nginx");
+        break;
+    }
+    case webserver::Commands::DEPLOY: { // upload passed folder to remote host and setup nginx to work with it
+
+    }
     case webserver::Commands::CONFIGURE:
         std::cout << "case config\n";
         break;
@@ -68,4 +64,8 @@ void Webserver::upload(std::string host, std::string password, std::string user,
     m_sshHandler->sshConnect();
     m_sshHandler->upload(path);
     m_sshHandler->sshDisconnect();
+}
+void Webserver::deploy(const Command_t &command)
+{
+    command.arguments.top();
 }
