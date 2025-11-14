@@ -2,7 +2,6 @@
 
 #include "../../include/SshHandler.hpp"
 #include <iostream>
-#include "Webserver.hpp"
 
 Webserver::Webserver() {}
 Webserver::Webserver(std::unique_ptr<SshHandler>&& handler) : m_sshHandler(std::move(handler)) {}
@@ -67,5 +66,6 @@ void Webserver::upload(std::string host, std::string password, std::string user,
 }
 void Webserver::deploy(const Command_t &command)
 {
-    command.arguments.top();
+    (void)command;
+    // command.arguments.back();
 }

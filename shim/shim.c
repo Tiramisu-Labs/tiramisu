@@ -11,7 +11,7 @@ int32_t alloc(int32_t size) {
 
 __attribute__((export_name("dealloc")))
 void dealloc(int32_t ptr, int32_t size) {
-    (void)ptr; (void)size; // no-op
+    (void)ptr; (void)size;
 }
 
 extern char *handler(const char *req);
