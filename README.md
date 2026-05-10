@@ -1,89 +1,79 @@
-# Tiramisu CLI
-Tiramisu is a lightweight CLI designed to manage a private cloud/serverless environment on resource-constrained hosts. It leverages WASM (WebAssembly) for secure, efficient execution on minimal infrastructure.
+## Tiramisu: Private Cloud & Serverless Engine
 
-Getting Started
-1. Host Management
-Tiramisu requires registering remote hosts via SSH. Once registered, you can manage them using an alias.
+Tiramisu is a high-performance, lightweight serverless infrastructure designed for resource-constrained hardware like the Raspberry Pi. It replaces heavy containerization and WASM runtimes with a native Dynamic Loader model, executing code at bare-metal speeds via Shared Objects (.so).
 
-Bash
+---
 
-## Register a new host (e.g., dev-server at user@192.168.1.100)
-tiramisu host add <alias> <username@hostname_or_ip>
+## System Architecture
 
-## List all registered hosts
-tiramisu host list
-2. Setup and Installation
-The tiramisu setup command prepares the remote host. It automatically identifies the host architecture, cross-compiles the custom C server (statically linked with Wasmtime), installs pre-compiled Nginx binaries, and transfers all files to the remote host.
+The project consists of three primary layers:
 
-Bash
+1. **Orchestrator (Tiramisu CLI):** Manages remote hosts via SSH. It handles the local cross-compilation of user code into architecture-specific Shared Objects and automates deployment.
+2. **Edge Gateway (Nginx):** Acts as the entry point. It serves static assets (SSG) and proxies dynamic API requests to the Caffeine server via Unix Domain Sockets.
+3. **Execution Engine (Caffeine Server):** A C-based server that utilizes a pre-forked worker pool and `SO_REUSEPORT`. It dynamically loads (.dlopen) handler binaries into its memory space, executing logic through a unified C-ABI.
 
-## Install the Tiramisu environment on the specified host
-tiramisu setup <alias>
-3. Application Lifecycle
-Tiramisu simplifies the process of building and deploying WASM applications.
+---
 
-Building WASM Applications
-The tiramisu build command compiles application source code into a WASM executable (.wasm).
+## Core Components
 
-Bash
+### The Caffeine Server
 
-## Compile source files recursively into WASM executables
-tiramisu build <source_directory_or_file>
-Deploying WASM Applications
-The tiramisu deploy command transfers the compiled WASM files to the remote host.
+* **Listener:** Uses `epoll` and `SO_REUSEPORT` to handle up to 15,000 concurrent connections.
+* **Worker Pool:** Persistent processes that maintain a cache of loaded `.so` handles to eliminate cold-start latency.
+* **Supervisor:** Monitors worker health, memory usage, and execution time (Watchdog), recycling processes that leak or hang.
+* **Context Injection:** Passes a `tiramisu_ctx` struct to handlers, providing pre-opened database handles (SQLite/Postgres) and request metadata.
 
-Bash
+### The Tiramisu CLI
 
-## Deploy WASM executables and associated files to the remote host
-tiramisu deploy <alias> <local_file_or_directory>
-Webserver Management (tiramisu webserv)
-The webserv command group manages the custom C server and Nginx on the remote host.
+* **Build Engine:** Uses containerized toolchains to cross-compile source code (C, Rust, Zig) into `.so` files without requiring local compiler installation.
+* **Language Shims:** Wraps high-level languages like JavaScript (QuickJS) or Python (libpython) into C-compatible shared libraries.
+* **Deployer:** Synchronizes binaries and updates Nginx/Caffeine configurations on remote hosts.
 
-Service Control
-Bash
+---
 
-## Install the web service binaries and configuration files on the remote host
-## (Note: The WASM runtime is compiled directly into the web service binary)
-tiramisu webserv install <alias> 
+## Project Structure
 
-## Start the web service (custom server and Nginx)
-tiramisu webserv start <alias>
+```text
+tiramisu/
+├── bin/                # Compiled CLI binaries
+├── cmd/                # Tiramisu CLI source code
+├── server/             # Caffeine Execution Engine (C)
+│   ├── src/            # Core server logic (epoll, workers, loader)
+│   └── include/        # Server-internal headers
+├── libs/               # Developer SDKs
+│   ├── c/              # tiramisu.h (Context and API definitions)
+│   ├── rust/           # tiramisu-rs (C-ABI bindings)
+│   └── js/             # QuickJS wrapper templates
+├── templates/          # Build-time wrappers for code generation
+└── docker/             # Cross-compilation toolchain images
 
-## Stop the web service
-tiramisu webserv shutdown <alias>
+```
 
-## Restart the web service
-tiramisu webserv restart <alias>
+---
 
-## Reload the web service configuration (e.g., Nginx config)
-tiramisu webserv reload <alias>
-Configuration and Status
-Bash
+## Developer Workflow
 
-## Check the status of the web service
-tiramisu webserv status <alias>
+1. **Define:** User writes a simple function using the Tiramisu library.
+2. **Configure:** A `tiramisu.yaml` defines routes, database requirements, and static asset paths.
+3. **Build:** `tiramisu build` compiles the code into a native `.so` for the target architecture.
+4. **Deploy:** `tiramisu deploy` pushes the binary and static files to the remote host.
+5. **Execute:** Caffeine detects the new file, hot-swaps the library pointer, and begins serving requests with zero downtime.
 
-## Display logs for the web service
-tiramisu webserv logs <alias>
+---
 
-## Test the current configuration files before applying them
-tiramisu webserv test-config <alias>
+## Technical Specifications
 
-## Open a configuration editor or apply changes to the web service configuration
-tiramisu webserv configure <alias>
-Connection and Uninstallation
-Bash
+* **Concurrency Model:** Multi-process Shared Listener (Linux SO_REUSEPORT).
+* **Communication:** Unix Domain Sockets (Nginx to Caffeine).
+* **Interface:** C-ABI / `#[repr(C)]`.
+* **Memory Management:** Process-level isolation via Worker recycling and Watchdog.
+* **Persistence Support:** Integrated SQLite (file-based) or PostgreSQL (connection pooling).
 
-## Establish an SSH connection to the web service host
-tiramisu webserv connect <alias>
+---
 
-## Uninstall the web service from the remote host
-tiramisu webserv uninstall <alias>
+## Build Requirements
 
-emcc: emcc -sSTANDALONE_WASM=1 -sPURE_WASI=1 file.c/cpp -o file.wasm
+* **Local:** Docker (for cross-compilation), SSH client.
+* **Remote:** Linux (Kernel 3.9+ for SO_REUSEPORT), Nginx, Glibc.
 
-
-TODO:
-    - environment var load
-    - parse/update config.yaml
-    - install wasmtime remotely
+This architecture ensures that even the smallest ARM devices can function as robust cloud nodes, prioritizing high-concurrency and minimal administrative overhead.
