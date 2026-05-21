@@ -1,11 +1,13 @@
 NAME=tiramisu
 SRC=Lexer.cpp CLI.cpp main.cpp Parser.cpp SshHandler.cpp \
-	commands/Host.cpp commands/Build.cpp commands/Setup.cpp commands/Webserver.cpp commands/Install.cpp
+	commands/Host.cpp commands/Build.cpp commands/Setup.cpp \
+	commands/Webserver.cpp commands/Install.cpp commands/Init.cpp \
+	commands/Create.cpp
 SRCDIR=src
 SRCS=$(addprefix $(SRCDIR)/, $(SRC))
 CONFDIR=~/.tiramisu/config/
 CC=c++
-CFLAGS=-Wall -Werror -Wextra -O3 --std=c++20
+CFLAGS=-Wall -Werror -Wextra -O3 --std=c++20 -Iinclude
 OBJ=$(SRCS:.cpp=.o)
 
 all: $(NAME)

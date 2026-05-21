@@ -1,12 +1,14 @@
-#include "../include/CLI.hpp"
-#include "../include/SshHandler.hpp"
-#include "../include/Parser.hpp"
-#include "../include/Utils.hpp"
-#include "../include/commands/Webserver.hpp"
-#include "../include/commands/Host.hpp"
-#include "../include/commands/Setup.hpp"
-#include "../include/commands/Build.hpp"
-#include "../include/commands/Install.hpp"
+#include <CLI.hpp>
+#include <SshHandler.hpp>
+#include <Parser.hpp>
+#include <Utils.hpp>
+#include <commands/Webserver.hpp>
+#include <commands/Host.hpp>
+#include <commands/Init.hpp>
+#include <commands/Setup.hpp>
+#include <commands/Build.hpp>
+#include <commands/Install.hpp>
+#include <commands/Create.hpp>
 
 #include <algorithm>
 #include <ranges>
@@ -26,7 +28,9 @@ static const std::map<std::string, Extensions> extensionsMap_ {
 
 static std::map<std::string, Commands> commandsMap = {
     {"connect", Commands::CONNECT},
+    {"init", Commands::INIT},
     {"host", Commands::HOST},
+    {"create", Commands::CREATE},
     {"build", Commands::BUILD},
     {"deploy", Commands::DEPLOY},
     {"install", Commands::INSTALL},
@@ -172,8 +176,12 @@ void CLI::registerCommandFactories() {
 
     m_commandFactories[static_cast<size_t>(Commands::HOST)] =
         [&](std::unique_ptr<SshHandler>& sshHandler) { return std::make_unique<Host>(std::move(sshHandler)); };
+    m_commandFactories[static_cast<size_t>(Commands::INIT)] =
+        [&](std::unique_ptr<SshHandler>& sshHandler) { (void)sshHandler; return std::make_unique<Init>(); };
     m_commandFactories[static_cast<size_t>(Commands::BUILD)] =
         [&](std::unique_ptr<SshHandler>& sshHandler) { (void)sshHandler; return std::make_unique<Build>(); };
+    m_commandFactories[static_cast<size_t>(Commands::CREATE)] =
+        [&](std::unique_ptr<SshHandler>& sshHandler) { (void)sshHandler; return std::make_unique<Create>(); };
     m_commandFactories[static_cast<size_t>(Commands::INSTALL)] =
         [&](std::unique_ptr<SshHandler>& sshHandler) { (void)sshHandler; return std::make_unique<Install>(); };
     m_commandFactories[static_cast<size_t>(Commands::SETUP)] =

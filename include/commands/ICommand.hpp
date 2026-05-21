@@ -2,7 +2,26 @@
 
 #include <string>
 
-#include "../Utils.hpp"
+#include <Utils.hpp>
+
+enum class Commands
+{
+    UNKNOWN,
+    CONNECT,
+    INIT,
+    HOST,
+    CREATE,
+    BUILD,
+    DEPLOY,
+    WEBSERVER,
+    INSTALL,
+    SETUP,
+    HELP,
+    UNISTALL,
+    SIZE
+};
+
+
 
 class ICommand {
     public:

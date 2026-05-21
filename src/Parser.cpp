@@ -25,20 +25,19 @@ Command_t Parser::parse()
     
     Token current_token = getNextToken();
 
-    std::cout << "current_token: " << current_token.getValue() << std::endl;
+    std::cout << "current_token: " << current_token.getValue() << " type: " << current_token.getTypeName() << std::endl;
 
-    if (current_token.getType() != ETypes::STRING) {
+    if (current_token.getType() != ETypes::COMMAND) {
         throwParserError("Expected command name, but found: " + current_token.getValue());
     }
     
     command.name = current_token.getValue();
     while ((current_token = getNextToken()).getType() != ETypes::EOF_TOKEN) {
-        std::cout << "current_token: " << current_token.getValue() << std::endl;
+        std::cout << "current_token: " << current_token.getValue() << " type: " << current_token.getTypeName() << std::endl;
         switch (current_token.getType()) {
-            case ETypes::FLAG: {
+            case ETypes::FLAG:
                 command.flags.push_back(current_token.getMetadata());
                 break;
-            }
             case ETypes::OPTION_NAME: {
                 std::string option_name = current_token.getValue();
 

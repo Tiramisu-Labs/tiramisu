@@ -23,6 +23,15 @@ Lexer::~Lexer()
     m_tokens.clear();    
 }
 
+static bool isCommand(const std::string& command) {
+    return command == "connect" ||
+        command == "init" || command == "host" ||
+        command == "create" || command == "build" ||
+        command == "deploy" || command == "webserver" ||
+        command == "install" || command == "setup" ||
+        command == "help" || command == "unistall";
+}
+
 void Lexer::tokenize(int argc, char* argv[])
 {
     for (int i = 1; i < argc; i++) {
@@ -37,11 +46,12 @@ void Lexer::tokenize(int argc, char* argv[])
             continue;
         }
 
-        if (current.rfind("-", 0) == 0) {
+        if (isCommand(current)) {
+            m_tokens.push_back(Token(ETypes::COMMAND, std::move(current)));
+        } else if (current.rfind("-", 0) == 0) {
             if (m_boolean_flags.count(current)) {
                 m_tokens.push_back(Token(ETypes::FLAG, std::move(current), ""));
-            }
-            else if (m_options_with_value_next_arg.count(current)) {
+            } else if (m_options_with_value_next_arg.count(current)) {
                 m_tokens.push_back(Token(ETypes::OPTION_NAME, std::move(current), ""));
                 if (i + 1 >= argc) {
                     throw std::runtime_error("Error: missing value for option " + current);

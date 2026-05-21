@@ -22,6 +22,21 @@ class Token
     std::string getMetadata() const { return m_metadata; }
     ETypes getType() { return m_type; }
     ETypes getType() const { return m_type; }
+    std::string getTypeName() const {
+        switch (m_type)
+        {
+        case ETypes::ADDRESS: return "address";
+        case ETypes::COMMAND: return "command";
+        case ETypes::EOF_TOKEN: return "eof";
+        case ETypes::FLAG : return "flag";
+        case ETypes::NUMBER: return "number";
+        case ETypes::OPTION_NAME : return "option name";
+        case ETypes::OPTION_VALUE: return "option value";
+        case ETypes::PATH: return "path";
+        case ETypes::STRING: return "string";
+        }
+        return "unrecognized type";
+    }
 };
 
 

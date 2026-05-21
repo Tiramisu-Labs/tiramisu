@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Parser.hpp"
-#include "commands/ICommand.hpp"
+#include <Parser.hpp>
+#include <commands/ICommand.hpp>
 
 #include <functional> // std::function
 #include <stdlib.h>
@@ -10,23 +10,6 @@
 
 class Webserver;
 class Parser;
-class SshHandler;
-
-enum class Commands
-{
-    UNKNOWN,
-    CONNECT,
-    HOST,
-    BUILD,
-    DEPLOY,
-    WEBSERVER,
-    INSTALL,
-    SETUP,
-    HELP,
-    UNISTALL,
-    SIZE
-};
-
 class SshHandler;
 
 class CLI

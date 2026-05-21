@@ -11,7 +11,7 @@ std::string Build::getName() const { return "build"; }
 
 std::string Build::getHelp() const {
     return "Usage: build <dir> [arguments...]\n"
-        "  Compile files inside dir into .wasm executable.\n";
+        "  Compile files inside dir into a shared object.\n";
 }
 
 void Build::execute(const Command_t& command) {
@@ -40,13 +40,16 @@ void Build::execute(const Command_t& command) {
                     break;
                 }
                 case Extensions::C: {
-                    // if (!checkExtensionCompiler(extension)) {
-                    //     std::string error = "no compiler found to compile .c files into .wasm\n"
-                    //     "Please visit https://emscripten.org/ and follow the guide to install it,\n"
-                    //     "or try running 'tiramisu install emscripten' to try automatically install it.";
-                    //     throw std::runtime_error(error);
-                    // }
-                    std::string cmd = "emcc -sSTANDALONE_WASM=1 -sPURE_WASI=1 " + file + " -o " + file.substr(0, file.find_last_of('.')) + ".wasm";
+                    std::string cmd = "gcc -Wall -Wextra -Werror -shared -o " + file.substr(0, file.find_last_of('.')) + ".so" + "-fPIC " + file;
+                    std::cout << cmd << "\n";
+                    int s_call = system(cmd.c_str());
+                    if (s_call) {
+                        std::cerr << "Error: something went wrong. Exit status: " << s_call << std::endl;
+                    }
+                    break;
+                }
+                case Extensions::CPP: {
+                    std::string cmd = "c++ -Wall -Wextra -Werror -shared -o " + file.substr(0, file.find_last_of('.')) + ".so" + "-fPIC " + file;
                     std::cout << cmd << "\n";
                     int s_call = system(cmd.c_str());
                     if (s_call) {

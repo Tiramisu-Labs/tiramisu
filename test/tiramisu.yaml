@@ -1,0 +1,10 @@
+# Tiramisu Project Configuration
+project:
+  name: "test"
+
+routing:
+  prefix: "api/v1"
+  root_dir: "./api"
+
+environments:
+  # Use 'tiramisu host add' to append target server nodes here
