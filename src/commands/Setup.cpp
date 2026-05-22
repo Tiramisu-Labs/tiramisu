@@ -9,10 +9,8 @@ Setup::Setup(std::unique_ptr<SshHandler>&& handler) : m_sshHandler(std::move(han
 
 std::string Setup::getName() const { return "setup"; }
 
-std::string Setup::getHelp() const {
-    return "Usage: setup <host> [arguments...]\n"
-        "  install packages inside the remote host.\n"
-        "  Default: nginx";
+std::string_view Setup::getHelp() const {
+    return SETUP_HELP;
 }
 
 void Setup::execute(const Command_t & command) {

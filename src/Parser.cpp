@@ -36,7 +36,11 @@ Command_t Parser::parse()
         std::cout << "current_token: " << current_token.getValue() << " type: " << current_token.getTypeName() << std::endl;
         switch (current_token.getType()) {
             case ETypes::FLAG:
-                command.flags.push_back(current_token.getMetadata());
+                if (current_token.getValue() == "-h" || current_token.getValue() == "--help") {
+                    command.help = true;
+                } else {
+                    command.flags.push_back(current_token.getMetadata());
+                }
                 break;
             case ETypes::OPTION_NAME: {
                 std::string option_name = current_token.getValue();

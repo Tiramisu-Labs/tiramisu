@@ -9,9 +9,8 @@ Build::Build() {}
 
 std::string Build::getName() const { return "build"; }
 
-std::string Build::getHelp() const {
-    return "Usage: build <dir> [arguments...]\n"
-        "  Compile files inside dir into a shared object.\n";
+std::string_view Build::getHelp() const {
+    return BUILD_HELP;
 }
 
 void Build::execute(const Command_t& command) {

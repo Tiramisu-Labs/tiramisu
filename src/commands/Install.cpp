@@ -6,9 +6,8 @@
 Install::Install() {}
 
 std::string Install::getName() const { return "install"; }
-std::string Install::getHelp() const {
-    return "Try to install the desired package:\n"
-        "  emscripten   install emscripten to compile C and C++ into wasm";
+std::string_view Install::getHelp() const {
+    return INSTALL_HELP;
 }
 
 void Install::execute(const Command_t& command) {

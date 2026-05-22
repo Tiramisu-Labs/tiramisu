@@ -6,19 +6,16 @@ Host::Host(std::unique_ptr<SshHandler>&& handler) : m_sshHandler(std::move(handl
 
 std::string Host::getName() const { return "host"; }
 
-std::string Host::getHelp() const {
-    return "Usage: host <action> [arguments...]\n"
-        "  Manages host configurations.\n"
-        "  host setup [--skip-nginx] [--caffeine-version <string>]: Remotely provisions a clean OS into a fully functioning Tiramisu node.\n"
-        "  host reset [--keep-db] [-y, --yes]: Wipes out all deployed application functions while leaving the underlying Nginx, Caffeine, and database configurations intact."
-        "  host purge [-y, --yes]: The destructive deep-clean. Uninstalls Nginx, deletes the Caffeine binary, wipes all systemd services, and flushes all storage folders."
-        "  host add [--host=<IP/DNS>] [--user=<user>] [--password=<password>] [--port=<port>] [--alias=<alias>]: add a new host to the hosts list"
-        "  host list: list stored hosts"
-        "  host test [--alias=<alias>]: test connection with the specified host";
+std::string_view Host::getHelp() const {
+    return HOST_HELP;
 }
 
 void Host::execute(const Command_t& command) {
-    if (command.arguments.size() == 0) throw std::runtime_error(getHelp());
+    if (command.help) {
+        getHelp();
+        return ;
+    }
+    if (command.arguments.size() == 0) throw std::runtime_error(std::string(getHelp()));
     auto const sub_command = command.arguments.front();
     switch (host_cmds[sub_command])
     {
@@ -27,7 +24,7 @@ void Host::execute(const Command_t& command) {
         case Commands::LIST: list(); break;
         case Commands::TEST: test(command.options); break;
         case Commands::INVALID: {
-            std::cerr << "host -> " << sub_command << " unrecognized\n" + getHelp() << "\n";
+            std::cerr << "host -> " << sub_command << " unrecognized\n" << getHelp() << "\n";
             break;
         }
         default: break;

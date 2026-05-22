@@ -19,6 +19,7 @@ enum class ETypes
 };
 
 struct Command_t {
+    bool help = false;
     std::string name;
     std::unordered_map<std::string, std::string> options;
     std::vector<std::string> flags;

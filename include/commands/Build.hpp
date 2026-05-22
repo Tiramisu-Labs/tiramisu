@@ -3,6 +3,11 @@
 #include "ICommand.hpp"
 #include <unordered_map>
 
+inline constexpr std::string_view BUILD_HELP = R"(
+"Usage: build <dir> [arguments...]"
+"   Compile files inside dir into a shared object"
+)";
+
 enum class Extensions
 {
     INVALID,
@@ -23,7 +28,7 @@ class Build : public ICommand {
     Build();
     ~Build() override {};
     std::string getName() const override;
-    std::string getHelp() const override;
+    std::string_view getHelp() const override;
     void execute(const Command_t& command) override;
     bool checkExtensionCompiler(const std::string ext);
 

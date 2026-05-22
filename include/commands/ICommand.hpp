@@ -3,6 +3,7 @@
 #include <string>
 
 #include <Utils.hpp>
+#include <string_view>
 
 enum class Commands
 {
@@ -28,5 +29,5 @@ class ICommand {
         virtual ~ICommand() = default;
         virtual std::string getName() const = 0;
         virtual void execute(const Command_t& command) = 0;
-        virtual std::string getHelp() const = 0;
+        virtual std::string_view getHelp() const = 0;
 };

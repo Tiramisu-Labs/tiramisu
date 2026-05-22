@@ -8,7 +8,7 @@ Webserver::Webserver(std::unique_ptr<SshHandler>&& handler) : m_sshHandler(std::
 
 std::string Webserver::getName() const { return "webserver"; }
 
-std::string Webserver::getHelp() const {
+std::string_view Webserver::getHelp() const {
     return "";
 }
 
