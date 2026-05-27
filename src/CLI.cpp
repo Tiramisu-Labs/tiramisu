@@ -16,7 +16,7 @@
 #include <map>
 #include <filesystem>
 
-static const std::map<std::string, Extensions> extensionsMap_ {
+static const std::map<std::string, Extensions> extensionsMap {
     {"c", Extensions::C},
     {"cpp", Extensions::CPP},
     {"rs", Extensions::RS},
@@ -40,8 +40,7 @@ static std::map<std::string, Commands> commandsMap = {
 };
 
 CLI::CLI(std::unique_ptr<Parser> parser, const std::string& env_path)
-    : m_parser(std::move(parser)),
-      m_sshHandler(std::make_unique<SshHandler>())
+    : m_parser(std::move(parser))
 {
     if (!env_path.empty()) {
         loadEnvFile(env_path);
@@ -82,7 +81,7 @@ void CLI::loadEnvFile(const std::string& file_path) {
 
 void CLI::run() {
     try {
-        Command_t parsed_command = m_parser->parse();
+        Command parsed_command = m_parser->parse();
         processParsedCommand(parsed_command);
     } catch (const std::runtime_error& e) {
         std::cerr << "Error: " << e.what() << "\n";
@@ -125,8 +124,8 @@ bool CLI::create_config_dir() {
     return true;
 }
     
-void CLI::processParsedCommand(const Command_t& command) {
-    std::unique_ptr<ICommand> currentCommandInstance = m_commandFactories[static_cast<size_t>(commandsMap[command.name])](m_sshHandler);
+void CLI::processParsedCommand(const Command& command) {
+    std::unique_ptr<ICommand> currentCommandInstance = m_commandFactories[static_cast<size_t>(commandsMap[command.name])]();
     try {
         currentCommandInstance->execute(command);
     } catch (const std::runtime_error& e) {
@@ -139,11 +138,11 @@ void CLI::executeConnect(const std::string& host, const std::string& user, const
     std::cout << "SSH Connection established/simulated.\n";
 }
 
-void CLI::executeSSH(const std::string& command_to_execute) {
+void CLI::executeSSH(const std::string& Commando_execute) {
     if (!m_sshHandler->isConnected()) {
         throw std::runtime_error("Not connected to any SSH server. Use 'connect' first.");
     }
-    std::cout << "Executing remote command: '" << command_to_execute << "'\n";
+    std::cout << "Executing remote command: '" << Commando_execute << "'\n";
     std::cout << "Remote command executed/simulated.\n";
 }
 
@@ -174,18 +173,11 @@ void CLI::displayHelp(const std::string& command_name) {
 void CLI::registerCommandFactories() {
     m_commandFactories.resize(static_cast<size_t>(Commands::SIZE));
 
-    m_commandFactories[static_cast<size_t>(Commands::HOST)] =
-        [&](std::unique_ptr<SshHandler>& sshHandler) { return std::make_unique<Host>(std::move(sshHandler)); };
-    m_commandFactories[static_cast<size_t>(Commands::INIT)] =
-        [&](std::unique_ptr<SshHandler>& sshHandler) { (void)sshHandler; return std::make_unique<Init>(); };
-    m_commandFactories[static_cast<size_t>(Commands::BUILD)] =
-        [&](std::unique_ptr<SshHandler>& sshHandler) { (void)sshHandler; return std::make_unique<Build>(); };
-    m_commandFactories[static_cast<size_t>(Commands::CREATE)] =
-        [&](std::unique_ptr<SshHandler>& sshHandler) { (void)sshHandler; return std::make_unique<Create>(); };
-    m_commandFactories[static_cast<size_t>(Commands::INSTALL)] =
-        [&](std::unique_ptr<SshHandler>& sshHandler) { (void)sshHandler; return std::make_unique<Install>(); };
-    m_commandFactories[static_cast<size_t>(Commands::SETUP)] =
-        [&](std::unique_ptr<SshHandler>& sshHandler) { return std::make_unique<Setup>(std::move(sshHandler)); };
-    m_commandFactories[static_cast<size_t>(Commands::WEBSERVER)] =
-        [&](std::unique_ptr<SshHandler>& sshHandler) { return std::make_unique<Webserver>(std::move(sshHandler)); };
+    m_commandFactories[static_cast<size_t>(Commands::HOST)] = [&]() { return std::make_unique<Host>(); };
+    m_commandFactories[static_cast<size_t>(Commands::INIT)] = [&]() { return std::make_unique<Init>(); };
+    m_commandFactories[static_cast<size_t>(Commands::BUILD)] = [&]() { return std::make_unique<Build>(); };
+    m_commandFactories[static_cast<size_t>(Commands::CREATE)] = [&]() { return std::make_unique<Create>(); };
+    m_commandFactories[static_cast<size_t>(Commands::INSTALL)] = [&]() { return std::make_unique<Install>(); };
+    m_commandFactories[static_cast<size_t>(Commands::SETUP)] = [&]() { return std::make_unique<Setup>(); };
+    m_commandFactories[static_cast<size_t>(Commands::WEBSERVER)] = [&]() { return std::make_unique<Webserver>(); };
 }

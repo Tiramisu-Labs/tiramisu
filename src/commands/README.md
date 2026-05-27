@@ -46,7 +46,7 @@ Links a new target physical hardware node to your local project space, executes 
 
 ```bash
     mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo 'ssh-rsa AAAAB3N...' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys
-    ```
+```
 5.  **Final Validation:** The CLI drops the password from memory, closes the session, and re-runs a clean probe execution using *only* the private key. If this second check passes, it appends the block cleanly to `tiramisu.yaml`:
     
 ```yaml
@@ -56,7 +56,7 @@ Links a new target physical hardware node to your local project space, executes 
         user: "root"
         identity: "~/.ssh/id_rsa"
         port: 22
-    ```
+```
 
 ---
 
@@ -87,7 +87,7 @@ Wipes out all functional application state from the remote single-board computer
     
 ```bash
     rm -rf /var/lib/tiramisu/functions/*
-    ```
+```
     Because Caffeine uses on-the-fly disk checks via `stat()` to load chunk-masked binaries, your API layer is instantly scrubbed. Any incoming request from Nginx immediately yields an optimal, low-overhead 404 response directly from Caffeine.
 
 ---
@@ -114,8 +114,6 @@ The ultimate destructive uninstallation sequence. Completely tears down the serv
 | `tiramisu host setup` | SSH Private Key (Under the hood) | None | Provisions core directories, sets up Nginx socket, starts Caffeine. |
 | `tiramisu host reset` | SSH Private Key (Under the hood) | Confirmation Prompt | Drops all `.so` binaries for an instant runtime wipe. |
 | `tiramisu host purge` | SSH Private Key (Under the hood) | Confirmation Prompt | Total uninstallation of Caffeine and application files. |
-
-```
 
 ---
 

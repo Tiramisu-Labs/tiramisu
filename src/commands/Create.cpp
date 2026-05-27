@@ -10,7 +10,7 @@ std::string_view Create::getHelp() const {
     return CREATE_HELP;
 }
 
-void Create::execute(const Command_t& command) {
+void Create::execute(const Command& command) {
     std::cout << "execute create\n";
     
     if (command.help) {

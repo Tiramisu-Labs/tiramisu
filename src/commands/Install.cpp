@@ -10,7 +10,7 @@ std::string_view Install::getHelp() const {
     return INSTALL_HELP;
 }
 
-void Install::execute(const Command_t& command) {
+void Install::execute(const Command& command) {
     std::cout << "execute install\n";
     if (command.arguments.size() == 0) {
         throw std::runtime_error("no arguments provided");

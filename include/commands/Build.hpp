@@ -29,7 +29,7 @@ class Build : public ICommand {
     ~Build() override {};
     std::string getName() const override;
     std::string_view getHelp() const override;
-    void execute(const Command_t& command) override;
+    void execute(const Command& command) override;
     bool checkExtensionCompiler(const std::string ext);
 
     const std::unordered_map<std::string, Extensions> extensionsMap_ {

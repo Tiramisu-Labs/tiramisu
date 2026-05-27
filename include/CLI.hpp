@@ -21,16 +21,16 @@ class CLI
         std::unique_ptr<SshHandler> m_sshHandler;
         
         void loadEnvFile(const std::string& file_path);
-        void processParsedCommand(const Command_t& command);
+        void processParsedCommand(const Command& command);
         void displayHelp(const std::string& command_name = "");
 
         void executeConnect(const std::string& host, const std::string& user, const std::string& password);
-        void executeSSH(const std::string& command_to_execute);
+        void executeSSH(const std::string& Commando_execute);
         void executeSetEnv(const std::string& key, const std::string& value);
         bool create_config_dir();
 
         // factory method
-        std::vector<std::function<std::unique_ptr<ICommand>(std::unique_ptr<SshHandler>& sshHandler)>> m_commandFactories;
+        std::vector<std::function<std::unique_ptr<ICommand>()>> m_commandFactories;
         void registerCommandFactories();
 
     public:

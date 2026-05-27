@@ -12,9 +12,9 @@ class Serve: public ICommand
 {
     public:
         Serve() = default;
-        ~Build() override = default;
+        ~Serve() override = default;
 
         std::string getName() const override;
         std::string_view getHelp() const override;
-        void execute(const Command_t& command) override;
+        void execute(const Command& command) override;
 };

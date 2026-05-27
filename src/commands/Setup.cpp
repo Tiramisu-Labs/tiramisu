@@ -4,8 +4,7 @@
 #include <iostream>
 #include <algorithm>
 
-Setup::Setup() {}
-Setup::Setup(std::unique_ptr<SshHandler>&& handler) : m_sshHandler(std::move(handler)) {}
+Setup::Setup() : m_sshHandler(std::make_unique<SshHandler>()) {}
 
 std::string Setup::getName() const { return "setup"; }
 
@@ -13,7 +12,7 @@ std::string_view Setup::getHelp() const {
     return SETUP_HELP;
 }
 
-void Setup::execute(const Command_t & command) {
+void Setup::execute(const Command & command) {
     // DEBUG prints
     std::cout << command.name << std::endl;
     const auto& options = command.options;

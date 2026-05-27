@@ -7,61 +7,50 @@
 #include <memory>
 #include <map>
 #include <vector>
+#include <functional>
 
 #include "ICommand.hpp"
 class SshHandler;
 
 inline constexpr std::string_view HOST_HELP = R"(
-    "Usage: host <action> [arguments...]\n"
-        "  Manages host configurations.\n"
-        "  host setup [--skip-nginx] [--caffeine-version <string>]: Remotely provisions a clean OS into a fully functioning Tiramisu node.\n"
-        "  host reset [--keep-db] [-y, --yes]: Wipes out all deployed application functions while leaving the underlying Nginx, Caffeine, and database configurations intact."
-        "  host purge [-y, --yes]: The destructive deep-clean. Uninstalls Nginx, deletes the Caffeine binary, wipes all systemd services, and flushes all storage folders."
-        "  host add [--host=<IP/DNS>] [--user=<user>] [--password=<password>] [--port=<port>] [--alias=<alias>]: add a new host to the hosts list"
-        "  host list: list stored hosts"
-        "  host test [--alias=<alias>]: test connection with the specified host";
+    Usage: host <action> [arguments...]
+        Manages host configurations.
+        host setup [--skip-nginx] [--caffeine-version <string>]: Remotely provisions a clean OS into a fully functioning Tiramisu node.
+        host reset [--keep-db] [-y, --yes]: Wipes out all deployed application functions while leaving the underlying Nginx, Caffeine, and database configurations intact.
+        host purge [-y, --yes]: The destructive deep-clean. Uninstalls Nginx, deletes the Caffeine binary, wipes all systemd services, and flushes all storage folders.
+        host add <env_name> [--ip <string>] [--user <string>] [--password <string>] [--port <int>]: add a new host to the hosts list
+        host list: list stored hosts
+        host test <env_name>: test connection with the specified host
 )";
 
 class Host : public ICommand {
     private:
     std::unique_ptr<SshHandler> m_sshHandler;
 
-    void add(std::unordered_map<std::string, std::string> options);
-    void list();
-    void test(const std::unordered_map<std::string, std::string>& options);
-    void test();
     std::string getArch() const;
+    // factory method
+    void add(const Command&& command);
+    void list(const Command&& command);
+    void setup(const Command&& command);
+    void reset(const Command&& command);
+    void purge(const Command&& command);
+    void test(const Command&& command);
 
     public:
     Host();
-    Host(std::unique_ptr<SshHandler>&& handler);
-    // override
     ~Host() override {};
+
     std::string getName() const override;
     std::string_view getHelp() const override;
-    void execute(const Command_t& command) override;
+    void execute(const Command& command) override;
 
-    enum class Commands {
-        INVALID,
-        HELP,
-        ADD,
-        LIST,
-        EXPORT,
-        IMPORT,
-        DELETE,
-        TEST,
-        SIZE
+    std::map<std::string, std::function<void(const Command&& command)>> commandsMap = {
+        {"add",   [this](const Command&& cmd) { add(std::move(cmd)); }},
+        {"list",  [this](const Command&& cmd) { list(std::move(cmd)); }},
+        {"ls",    [this](const Command&& cmd) { list(std::move(cmd)); }},
+        {"setup", [this](const Command&& cmd) { setup(std::move(cmd)); }},
+        {"reset", [this](const Command&& cmd) { reset(std::move(cmd)); }},
+        {"purge", [this](const Command&& cmd) { purge(std::move(cmd)); }},
+        {"test",  [this](const Command&& cmd) { test(std::move(cmd)); }},
     };
-
-    std::map<std::string, Commands> host_cmds = {
-        {"add", Commands::ADD},
-        {"list", Commands::LIST},
-        {"ls", Commands::LIST},
-        {"export", Commands::EXPORT},
-        {"import", Commands::IMPORT},
-        {"delete", Commands::DELETE},
-        {"test", Commands::TEST},
-    };
-
-    
 };

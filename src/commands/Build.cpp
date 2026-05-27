@@ -1,4 +1,4 @@
-#include "../../include/commands/Build.hpp"
+#include <commands/Build.hpp>
 
 #include <stdexcept>
 #include <iostream>
@@ -13,7 +13,7 @@ std::string_view Build::getHelp() const {
     return BUILD_HELP;
 }
 
-void Build::execute(const Command_t& command) {
+void Build::execute(const Command& command) {
     std::cout << "execute build\n";
     std::string dir = "";
     std::string host = "";

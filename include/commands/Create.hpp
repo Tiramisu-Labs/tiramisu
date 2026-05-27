@@ -47,5 +47,5 @@ public:
     std::string getName() const override;
     std::string_view getHelp() const override;
 
-    void execute(const Command_t& command) override;
+    void execute(const Command& command) override;
 };

@@ -18,7 +18,7 @@ enum class ETypes
     EOF_TOKEN
 };
 
-struct Command_t {
+struct Command {
     bool help = false;
     std::string name;
     std::unordered_map<std::string, std::string> options;

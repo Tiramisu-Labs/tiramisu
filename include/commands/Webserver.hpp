@@ -45,11 +45,10 @@ class Webserver : public ICommand {
 
     public:
     Webserver();
-    Webserver(std::unique_ptr<SshHandler>&& handler);
     ~Webserver() override {};
     std::string getName() const override;
     std::string_view getHelp() const override;
-    void execute(const Command_t& command) override;
+    void execute(const Command& command) override;
     void upload(std::string host, std::string password, std::string user, std::string port, std::string path);
-    void deploy(const Command_t& command);
+    void deploy(const Command& command);
 };

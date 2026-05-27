@@ -25,7 +25,7 @@ class Parser
        Parser() = delete;
        Parser(std::unique_ptr<Lexer> lexer);
 
-       Command_t parse();
+       Command parse();
 
     // utility
     

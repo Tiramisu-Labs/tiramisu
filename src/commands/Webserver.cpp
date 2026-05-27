@@ -1,10 +1,8 @@
-#include "../../include/commands/Webserver.hpp"
-
-#include "../../include/SshHandler.hpp"
+#include <commands/Webserver.hpp>
+#include <SshHandler.hpp>
 #include <iostream>
 
-Webserver::Webserver() {}
-Webserver::Webserver(std::unique_ptr<SshHandler>&& handler) : m_sshHandler(std::move(handler)) {}
+Webserver::Webserver() : m_sshHandler(std::make_unique<SshHandler>()) {}
 
 std::string Webserver::getName() const { return "webserver"; }
 
@@ -12,7 +10,7 @@ std::string_view Webserver::getHelp() const {
     return "";
 }
 
-void Webserver::execute(const Command_t& command) {
+void Webserver::execute(const Command& command) {
     std::cout << command.arguments.front() << std::endl;
 
     switch (commandsMap[command.arguments.front()])
@@ -64,7 +62,7 @@ void Webserver::upload(std::string host, std::string password, std::string user,
     m_sshHandler->upload(path);
     m_sshHandler->sshDisconnect();
 }
-void Webserver::deploy(const Command_t &command)
+void Webserver::deploy(const Command &command)
 {
     (void)command;
     // command.arguments.back();

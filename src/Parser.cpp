@@ -19,9 +19,9 @@ void Parser::throwParserError(const std::string& message) const {
     throw std::runtime_error("Parser Error: " + message);
 }
 
-Command_t Parser::parse()
+Command Parser::parse()
 {
-    Command_t command;
+    Command command;
     
     Token current_token = getNextToken();
 

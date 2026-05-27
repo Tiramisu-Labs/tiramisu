@@ -39,7 +39,7 @@ static inline void initProject(const std::string& project_name, const std::strin
     std::cout << "project " + project_name + " succesfully created\n";
 }
 
-void Init::execute(const Command_t& command) {
+void Init::execute(const Command& command) {
     if (command.arguments.size() < 1) throw std::runtime_error(std::string(getHelp()));
     
     auto const project_name = command.arguments.front();

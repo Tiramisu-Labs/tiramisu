@@ -16,10 +16,9 @@ class Setup : public ICommand {
     std::unique_ptr<SshHandler> m_sshHandler;
     public:
     Setup();
-    Setup(std::unique_ptr<SshHandler>&& handler);
     ~Setup() override {};
     std::string getName() const override;
     std::string_view getHelp() const override;
-    void execute(const Command_t& command) override;
+    void execute(const Command& command) override;
     
 };
