@@ -43,7 +43,7 @@ class Init : public ICommand {
     private:
 
     public:
-    Init();
+    Init() = default;
     ~Init() override {};
 
     std::string getName() const override;

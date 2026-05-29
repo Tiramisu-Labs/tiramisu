@@ -1,8 +1,6 @@
 #include <commands/Host.hpp>
 #include <SshHandler.hpp>
 
-Host::Host() : m_sshHandler(std::make_unique<SshHandler>()) {}
-
 std::string Host::getName() const { return "host"; }
 
 std::string_view Host::getHelp() const {
@@ -45,21 +43,28 @@ void Host::list(const Command&& command) {
     hosts_file.close();
 }
 
-std::string Host::getArch() const { return m_sshHandler->getArch(); }
+std::string Host::getArch() const {
+    const auto handler = std::make_unique<SshHandler>();
+    const std::string arch = handler->getArch();
+    return arch; 
+}
 
 void Host::test(const Command&& command)
 {   
     if (command.arguments.size() == 0) {
         std::cerr << "tiramisu: error: <env_name> missing\n";
     }
-    if (m_sshHandler->sshConnect()) {
-        const auto alias = command.arguments.front();
+    const auto alias = command.arguments.front();
+
+    
+
+    const auto handler = std::make_unique<SshHandler>();
+    if (handler->sshConnect()) {
         try {
-            m_sshHandler->fillSshHandler(alias);
+            handler->fillSshHandler(alias);
         } catch (const std::runtime_error& e) {
             std::cerr << "Error: " << e.what() << std::endl;
         }
-        m_sshHandler->sshDisconnect();
     } else {
         throw std::runtime_error("remote host specs wrongs!");
     }

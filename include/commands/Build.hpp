@@ -25,7 +25,7 @@ class Build : public ICommand {
     private:
 
     public:
-    Build();
+    Build() = default;
     ~Build() override {};
     std::string getName() const override;
     std::string_view getHelp() const override;

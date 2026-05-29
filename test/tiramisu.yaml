@@ -2,9 +2,9 @@
 project:
   name: "test"
 
-routing:
-  prefix: "api/v1"
-  root_dir: "./api"
-
 environments:
-  # Use 'tiramisu host add' to append target server nodes here
+  production:
+    host: "192.168.1.50"
+    user: "root"
+    identity: "~/.ssh/id_rsa"
+    port: 22

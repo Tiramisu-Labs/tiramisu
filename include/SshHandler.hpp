@@ -5,20 +5,31 @@
 #include <libssh/libssh.h>
 #include <libssh/sftp.h>
 #include <vector>
+#include <memory>
 #include <map>
+
 #define CLOSE_CHANNEL(channel) ssh_channel_send_eof(channel); ssh_channel_close(channel); ssh_channel_free(channel)
+
+struct SshSessionDeleter {
+    void operator()(ssh_session session) const {
+        if (session) {
+            ssh_disconnect(session); 
+            ssh_free(session);
+        }
+    }
+};
 
 class SshHandler
 {
     private:
-        ssh_session m_session;
-        std::string m_host;
-        std::string m_user;
-        int m_port;
-        std::string m_password;
+        std::unique_ptr<typename std::remove_pointer<ssh_session>::type, SshSessionDeleter> sshSession;
+        std::string m_host      = "";
+        std::string m_user      = "";
+        int m_port              = 22;
+        std::string m_password  = "";
 
     public:
-        SshHandler();
+        SshHandler() = default;
         ~SshHandler();
     
         void setHost(std::string&& host);
@@ -32,6 +43,7 @@ class SshHandler
         
         ssh_channel initChannel();
         bool sshConnect();
+        bool sshConnect(const std::string& host, const std::string& user, int port, const char* password = nullptr);
         void sshDisconnect();
 
         bool verify_knownhost(ssh_session session);
@@ -40,5 +52,5 @@ class SshHandler
         void upload(const std::string path);
         void serviceUpload(const std::string path);
 
-        bool isConnected() { return m_session != nullptr; }
+        bool isConnected() { return sshSession != nullptr; }
 };

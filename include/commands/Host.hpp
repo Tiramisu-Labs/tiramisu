@@ -25,8 +25,6 @@ inline constexpr std::string_view HOST_HELP = R"(
 
 class Host : public ICommand {
     private:
-    std::unique_ptr<SshHandler> m_sshHandler;
-
     std::string getArch() const;
     // factory method
     void add(const Command&& command);
@@ -37,7 +35,7 @@ class Host : public ICommand {
     void test(const Command&& command);
 
     public:
-    Host();
+    Host() = default;
     ~Host() override {};
 
     std::string getName() const override;

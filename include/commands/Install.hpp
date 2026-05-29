@@ -9,7 +9,7 @@ inline constexpr std::string_view INSTALL_HELP = R"(
 
 class Install : public ICommand {
     public:
-    Install();
+    Install() = default;
     ~Install() override {};
     std::string getName() const override;
     std::string_view getHelp() const override;

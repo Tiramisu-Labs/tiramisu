@@ -3,8 +3,6 @@
 #include <stdexcept>
 #include <iostream>
 
-Install::Install() {}
-
 std::string Install::getName() const { return "install"; }
 std::string_view Install::getHelp() const {
     return INSTALL_HELP;

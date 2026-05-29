@@ -6,8 +6,6 @@
 #include <filesystem>
 #include <memory>
 
-Init::Init() {};
-
 std::string Init::getName() const { return "init"; }
 
 std::string_view Init::getHelp() const {

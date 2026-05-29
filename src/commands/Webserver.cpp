@@ -2,10 +2,7 @@
 #include <SshHandler.hpp>
 #include <iostream>
 
-Webserver::Webserver() : m_sshHandler(std::make_unique<SshHandler>()) {}
-
 std::string Webserver::getName() const { return "webserver"; }
-
 std::string_view Webserver::getHelp() const {
     return "";
 }
@@ -13,6 +10,7 @@ std::string_view Webserver::getHelp() const {
 void Webserver::execute(const Command& command) {
     std::cout << command.arguments.front() << std::endl;
 
+    const auto handler = std::make_unique<SshHandler>();
     switch (commandsMap[command.arguments.front()])
     {
     case webserver::Commands::INVALID:
@@ -21,25 +19,25 @@ void Webserver::execute(const Command& command) {
     case webserver::Commands::START: { // start remote server
         const auto alias_it = command.options.find("--alias");
         if (alias_it == command.options.end()) throw std::runtime_error("alias option is missing!");
-        m_sshHandler->fillSshHandler(alias_it->second);
-        m_sshHandler->exec_remote_command("$HOME/nginx/sbin/nginx");
+        handler->fillSshHandler(alias_it->second);
+        handler->exec_remote_command("$HOME/nginx/sbin/nginx");
         break;
     }
     case webserver::Commands::STOP: { // stop remote server
         const auto alias_it = command.options.find("--alias");
         if (alias_it == command.options.end()) throw std::runtime_error("alias option is missing!");
-        m_sshHandler->fillSshHandler(alias_it->second);
-        m_sshHandler->exec_remote_command("$HOME/nginx/sbin/nginx -s stop");
+        handler->fillSshHandler(alias_it->second);
+        handler->exec_remote_command("$HOME/nginx/sbin/nginx -s stop");
         break;
     }
     case webserver::Commands::RESTART: { // restart remote server
         const auto alias_it = command.options.find("--alias");
         if (alias_it == command.options.end()) throw std::runtime_error("alias option is missing!");
-        m_sshHandler->fillSshHandler(alias_it->second);
+        handler->fillSshHandler(alias_it->second);
         std::cout << "stopping nginx...\n";
-        m_sshHandler->exec_remote_command("$HOME/nginx/sbin/nginx -s stop");
+        handler->exec_remote_command("$HOME/nginx/sbin/nginx -s stop");
         std::cout << "restarting nginx...\n";
-        m_sshHandler->exec_remote_command("$HOME/nginx/sbin/nginx");
+        handler->exec_remote_command("$HOME/nginx/sbin/nginx");
         break;
     }
     case webserver::Commands::DEPLOY: { // upload passed folder to remote host and setup nginx to work with it
@@ -57,10 +55,12 @@ void Webserver::execute(const Command& command) {
 
 void Webserver::upload(std::string host, std::string password, std::string user, std::string port, std::string path)
 {
-    m_sshHandler->fillSshHandler(host, password, user, port);
-    m_sshHandler->sshConnect();
-    m_sshHandler->upload(path);
-    m_sshHandler->sshDisconnect();
+    const auto handler = std::make_unique<SshHandler>();
+    
+    handler->fillSshHandler(host, password, user, port);
+    handler->sshConnect();
+    handler->upload(path);
+    handler->sshDisconnect();
 }
 void Webserver::deploy(const Command &command)
 {

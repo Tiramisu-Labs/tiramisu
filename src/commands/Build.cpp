@@ -5,8 +5,6 @@
 #include <filesystem>
 #include <stdlib.h>
 
-Build::Build() {}
-
 std::string Build::getName() const { return "build"; }
 
 std::string_view Build::getHelp() const {

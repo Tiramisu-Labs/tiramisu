@@ -28,8 +28,6 @@ namespace webserver
 
 class Webserver : public ICommand {
     private:
-    std::unique_ptr<SshHandler> m_sshHandler;
-
     std::map<std::string, webserver::Commands> commandsMap = {
         {"install", webserver::Commands::INSTALL},
         {"start", webserver::Commands::START},
@@ -44,7 +42,7 @@ class Webserver : public ICommand {
     };
 
     public:
-    Webserver();
+    Webserver() = default;
     ~Webserver() override {};
     std::string getName() const override;
     std::string_view getHelp() const override;

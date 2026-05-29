@@ -12,10 +12,8 @@ inline constexpr std::string_view SETUP_HELP = R"(
 )";
 
 class Setup : public ICommand {
-    private:
-    std::unique_ptr<SshHandler> m_sshHandler;
     public:
-    Setup();
+    Setup() = default;
     ~Setup() override {};
     std::string getName() const override;
     std::string_view getHelp() const override;

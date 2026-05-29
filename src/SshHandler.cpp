@@ -5,9 +5,6 @@
 #include <fstream>
 #include <fcntl.h>
 
-SshHandler::SshHandler() 
-    : m_host(""), m_user(""), m_port(22), m_password("") {}
-
 SshHandler::~SshHandler() {
     sshDisconnect();
 }
@@ -22,20 +19,20 @@ ssh_channel SshHandler::initChannel() {
     int rc;
 
     if (!sshConnect()) {
-        const char *err = ssh_get_error(m_session);
+        const char *err = ssh_get_error(sshSession.get());
         throw std::runtime_error(err);
     }
-    channel = ssh_channel_new(m_session);
+    channel = ssh_channel_new(sshSession.get());
 
     if (channel == NULL) {
-        const char *err = ssh_get_error(m_session);
+        const char *err = ssh_get_error(sshSession.get());
         throw std::runtime_error(err);
     }
     
     rc = ssh_channel_open_session(channel);
     if (rc != SSH_OK) {
         ssh_channel_free(channel);
-        const char *err = ssh_get_error(m_session);
+        const char *err = ssh_get_error(sshSession.get());
         throw std::runtime_error(err);
     }
     return channel;
@@ -53,7 +50,7 @@ std::string SshHandler::getArch()
     if (rc != SSH_OK) {
         ssh_channel_close(channel);
         ssh_channel_free(channel);
-        const char *err = ssh_get_error(m_session);
+        const char *err = ssh_get_error(sshSession.get());
         throw std::runtime_error(err);
     }
     
@@ -66,7 +63,7 @@ std::string SshHandler::getArch()
     if (nbytes < 0) {
         ssh_channel_close(channel);
         ssh_channel_free(channel);
-        const char *err = ssh_get_error(m_session);
+        const char *err = ssh_get_error(sshSession.get());
         throw std::runtime_error(err);
     }
     return arch;
@@ -130,7 +127,7 @@ bool SshHandler::verify_knownhost(ssh_session session)
         return false;
     }
  
-    state = ssh_session_is_known_server(m_session);
+    state = ssh_session_is_known_server(sshSession.get());
     switch (state) {
         case SSH_KNOWN_HOSTS_OK:
             break;
@@ -142,7 +139,7 @@ bool SshHandler::verify_knownhost(ssh_session session)
             return false;
         case SSH_KNOWN_HOSTS_OTHER:
             std::cerr << "The host key for this server was not found but an other type of key exists.\n";
-            std::cerr << "An attacker might change the default server key to confuse your client into thinking the key does not exist\n";
+            std::   cerr << "An attacker might change the default server key to confuse your client into thinking the key does not exist\n";
             ssh_clean_pubkey_hash(&hash);
             return false;
         case SSH_KNOWN_HOSTS_NOT_FOUND:
@@ -160,14 +157,14 @@ bool SshHandler::verify_knownhost(ssh_session session)
                 return false;
             }
  
-            rc = ssh_session_update_known_hosts(m_session);
+            rc = ssh_session_update_known_hosts(sshSession.get());
             if (rc < 0) {
                 std::cerr << "Error " << errno << "\n";
                 return false;
             }
             break;
         case SSH_KNOWN_HOSTS_ERROR:
-            std::cerr << "Error " << ssh_get_error(m_session);
+            std::cerr << "Error " << ssh_get_error(sshSession.get());
             ssh_clean_pubkey_hash(&hash);
             return false;
     }
@@ -175,43 +172,93 @@ bool SshHandler::verify_knownhost(ssh_session session)
     return true;
 }
 
-bool SshHandler::sshConnect()
-{
-    m_session = ssh_new();
-    if (!m_session) {
+  bool SshHandler::sshConnect(const std::string& host, const std::string& user, int port, const char* password = nullptr)
+  {
+    if (sshSession) { sshDisconnect(); }
+    
+    sshSession.reset(ssh_new());
+
+    if (!sshSession) {
         std::cerr << "ssh failed\n";
         return false;
     }
 
-    std::string url = m_user + "@" + m_host;
-    ssh_options_set(m_session, SSH_OPTIONS_HOST, url.c_str());
-    ssh_options_set(m_session, SSH_OPTIONS_PORT, &m_port);
+    ssh_options_set(sshSession.get(), SSH_OPTIONS_HOST, host.c_str());
+    ssh_options_set(sshSession.get(), SSH_OPTIONS_USER, user.c_str());
+    ssh_options_set(sshSession.get(), SSH_OPTIONS_PORT, &port);
     
-    int rc = ssh_connect(m_session);
+    int rc = ssh_connect(sshSession.get());
     if (rc != SSH_OK) {
-        std::cerr << "Error connecting to " << url << ": " << ssh_get_error(m_session) << "\n";
-        ssh_free(m_session);
+        std::cerr << "Error connecting to " << m_user << "@" << m_host << ": " << ssh_get_error(sshSession.get()) << "\n";
+        ssh_free(sshSession.get());
         return false;
     }
 
-    if (!verify_knownhost(m_session))
+    if (!verify_knownhost(sshSession.get()))
     {
-        ssh_disconnect(m_session);
-        ssh_free(m_session);
+        ssh_disconnect(sshSession.get());
+        ssh_free(sshSession.get());
         return false;
     }
 
-    if (m_password != "") {
-        rc = ssh_userauth_password(m_session, NULL, m_password.c_str());
+    if (password) {
+        rc = ssh_userauth_password(sshSession.get(), NULL, password);
     } else {
-        rc = ssh_userauth_publickey_auto(m_session, NULL, NULL);
+        rc = ssh_userauth_publickey_auto(sshSession.get(), NULL, NULL);
     }
 
     if (rc != SSH_AUTH_SUCCESS)
     {
-      std::cerr << "Error authenticating with password: " << ssh_get_error(m_session) << "\n";
-      ssh_disconnect(m_session);
-      ssh_free(m_session);
+      std::cerr << "Error authenticating with password: " << ssh_get_error(sshSession.get()) << "\n";
+      ssh_disconnect(sshSession.get());
+      ssh_free(sshSession.get());
+      return false;
+    }
+
+    return true;
+  }
+
+bool SshHandler::sshConnect()
+{
+    if (sshSession) { sshDisconnect(); }
+    
+    sshSession.reset(ssh_new());
+
+    if (!sshSession) {
+        std::cerr << "ssh failed\n";
+        return false;
+    }
+
+    ssh_options_set(sshSession.get(), SSH_OPTIONS_HOST, m_host.c_str());
+    ssh_options_set(sshSession.get(), SSH_OPTIONS_USER, m_user.c_str());
+    ssh_options_set(sshSession.get(), SSH_OPTIONS_PORT, &m_port);
+    ssh_options_set(sshSession.get(), SSH_OPTIONS_PASSWORD_AUTH, m_password.c_str());
+    
+    int rc = ssh_connect(sshSession.get());
+    if (rc != SSH_OK) {
+        std::cerr << "Error connecting to " << m_user << "@" << m_host << ": " << ssh_get_error(sshSession.get()) << "\n";
+        ssh_free(sshSession.get());
+        return false;
+    }
+
+    if (!verify_knownhost(sshSession.get()))
+    {
+        ssh_disconnect(sshSession.get());
+        ssh_free(sshSession.get());
+        return false;
+    }
+
+    if (m_password != "") {
+        rc = ssh_userauth_password(sshSession.get(), NULL, m_password.c_str());
+    } else {
+        rc = ssh_userauth_publickey_auto(sshSession.get(), NULL, NULL);
+    }
+
+    if (rc != SSH_AUTH_SUCCESS)
+    {
+      std::cerr << "Error authenticating with password: " << ssh_get_error(sshSession.get()) << "\n";
+      ssh_disconnect(sshSession.get());
+      ssh_free(sshSession.get());
       return false;
     }
 
@@ -220,9 +267,9 @@ bool SshHandler::sshConnect()
 
 void SshHandler::sshDisconnect()
 {
-    if (m_session) {
-        ssh_disconnect(m_session);
-        ssh_free(m_session);
+    if (sshSession.get()) {
+        ssh_disconnect(sshSession.get());
+        ssh_free(sshSession.get());
     }
 }
 
@@ -233,10 +280,10 @@ void SshHandler::upload(const std::string path)
     
     sftp_session sftp;
     sshConnect();
-    sftp = sftp_new(m_session);
+    sftp = sftp_new(sshSession.get());
     if (sftp == NULL)
     {
-      fprintf(stderr, "Error allocating SFTP session: %s\n", ssh_get_error(m_session));
+      fprintf(stderr, "Error allocating SFTP session: %s\n", ssh_get_error(sshSession.get()));
       exit(1);
     }
   
@@ -251,7 +298,7 @@ void SshHandler::upload(const std::string path)
     sftp_file file = sftp_open(sftp, path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IWUSR);
     if (file == NULL)
     {
-      fprintf(stderr, "Can't open file for writing: %s\n", ssh_get_error(m_session));
+      fprintf(stderr, "Can't open file for writing: %s\n", ssh_get_error(sshSession.get()));
       exit(1);
     }
 
@@ -267,7 +314,7 @@ void SshHandler::upload(const std::string path)
             nwritten = sftp_write(file, buffer, fin.gcount());
             if (nwritten != fin.gcount())
             {
-                fprintf(stderr, "Error writing to file: %s\n", ssh_get_error(m_session));
+                fprintf(stderr, "Error writing to file: %s\n", ssh_get_error(sshSession.get()));
                 sftp_close(file);
                 exit(1);
             }
@@ -277,7 +324,7 @@ void SshHandler::upload(const std::string path)
     rc = sftp_close(file);
     if (rc != SSH_OK)
     {
-      fprintf(stderr, "Can't close the written file: %s\n", ssh_get_error(m_session));
+      fprintf(stderr, "Can't close the written file: %s\n", ssh_get_error(sshSession.get()));
       exit(1);
     }
 
@@ -291,10 +338,10 @@ void SshHandler::serviceUpload(const std::string path)
     
     sftp_session sftp;
     sshConnect();
-    sftp = sftp_new(m_session);
+    sftp = sftp_new(sshSession.get());
     if (sftp == NULL)
     {
-      fprintf(stderr, "Error allocating SFTP session: %s\n", ssh_get_error(m_session));
+      fprintf(stderr, "Error allocating SFTP session: %s\n", ssh_get_error(sshSession.get()));
       exit(1);
     }
   
@@ -316,7 +363,7 @@ void SshHandler::serviceUpload(const std::string path)
             rc = sftp_mkdir(sftp, dir.c_str(), S_IRWXU);
             if (rc != SSH_OK) {
                 if (sftp_get_error(sftp) != SSH_FX_FILE_ALREADY_EXISTS) {
-                fprintf(stderr, "Can't create directory: %s\n", ssh_get_error(m_session));
+                fprintf(stderr, "Can't create directory: %s\n", ssh_get_error(sshSession.get()));
                     exit(1);
                 }
             }
@@ -327,7 +374,7 @@ void SshHandler::serviceUpload(const std::string path)
     sftp_file file = sftp_open(sftp, path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IWUSR);
     if (file == NULL)
     {
-      fprintf(stderr, "Can't open file for writing: %s\n", ssh_get_error(m_session));
+      fprintf(stderr, "Can't open file for writing: %s\n", ssh_get_error(sshSession.get()));
       exit(1);
     }
 
@@ -343,7 +390,7 @@ void SshHandler::serviceUpload(const std::string path)
             nwritten = sftp_write(file, buffer, fin.gcount());
             if (nwritten != fin.gcount())
             {
-                fprintf(stderr, "Error writing to file: %s\n", ssh_get_error(m_session));
+                fprintf(stderr, "Error writing to file: %s\n", ssh_get_error(sshSession.get()));
                 sftp_close(file);
                 exit(1);
             }
@@ -353,7 +400,7 @@ void SshHandler::serviceUpload(const std::string path)
     rc = sftp_close(file);
     if (rc != SSH_OK)
     {
-      fprintf(stderr, "Can't close the written file: %s\n", ssh_get_error(m_session));
+      fprintf(stderr, "Can't close the written file: %s\n", ssh_get_error(sshSession.get()));
       exit(1);
     }
 
