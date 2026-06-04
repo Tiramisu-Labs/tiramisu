@@ -26,4 +26,5 @@ class Project {
     Project() = delete;
     std::optional<Environment> getEnv(const std::string& env_name) const;
     static std::optional<Project> loadFromContext(std::filesystem::path start_dir);
+    void print() const;
 };

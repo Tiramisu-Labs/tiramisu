@@ -20,7 +20,7 @@ static bool isNumber(const std::string& s)
 
 Lexer::~Lexer()
 {
-    m_tokens.clear();    
+    tokens.clear();    
 }
 
 static bool isCommand(const std::string& command) {
@@ -41,46 +41,46 @@ void Lexer::tokenize(int argc, char* argv[])
         if (eq_pos != std::string::npos && current.rfind("-", 0) == 0) { 
             std::string option_name = current.substr(0, eq_pos);
             std::string option_value = current.substr(eq_pos + 1);
-            m_tokens.push_back(Token(ETypes::OPTION_NAME, std::move(option_name), ""));
-            m_tokens.push_back(Token(ETypes::OPTION_VALUE, std::move(option_value)));
+            tokens.push_back(Token(ETypes::OPTION_NAME, std::move(option_name), ""));
+            tokens.push_back(Token(ETypes::OPTION_VALUE, std::move(option_value)));
             continue;
         }
 
         if (isCommand(current)) {
-            m_tokens.push_back(Token(ETypes::COMMAND, std::move(current)));
+            tokens.push_back(Token(ETypes::COMMAND, std::move(current)));
         } else if (current.rfind("-", 0) == 0) {
-            if (m_boolean_flags.count(current)) {
-                m_tokens.push_back(Token(ETypes::FLAG, std::move(current), ""));
-            } else if (m_options_with_value_next_arg.count(current)) {
-                m_tokens.push_back(Token(ETypes::OPTION_NAME, std::move(current), ""));
+            if (flags.count(current)) {
+                tokens.push_back(Token(ETypes::FLAG, std::move(current), ""));
+            } else if (options.count(current)) {
+                tokens.push_back(Token(ETypes::OPTION_NAME, std::move(current), ""));
                 if (i + 1 >= argc) {
                     throw std::runtime_error("Error: missing value for option " + current);
                 }
-                m_tokens.push_back(Token(ETypes::OPTION_VALUE, argv[++i]));
+                tokens.push_back(Token(ETypes::OPTION_VALUE, argv[++i]));
             } else {
                 throw std::runtime_error("Error: unrecognized or malformed option/flag: " + current);
             }
         }
         else if (isNumber(current)) {
-            m_tokens.push_back(Token(ETypes::NUMBER, std::move(current)));
+            tokens.push_back(Token(ETypes::NUMBER, std::move(current)));
         } else if (std::filesystem::exists(current)) {
-            m_tokens.push_back(Token(ETypes::PATH, std::move(current)));
+            tokens.push_back(Token(ETypes::PATH, std::move(current)));
         } else {
-            m_tokens.push_back(Token(ETypes::STRING, std::move(current)));
+            tokens.push_back(Token(ETypes::STRING, std::move(current)));
         }
     }
-    m_tokens.push_back(Token(ETypes::EOF_TOKEN, ""));
+    tokens.push_back(Token(ETypes::EOF_TOKEN, ""));
 }
 
 Token Lexer::getNextToken()
 {
-    Token s {m_tokens.front()};
-    m_tokens.pop_front();
+    Token s {tokens.front()};
+    tokens.pop_front();
     return s;
 }
 
 Token Lexer::peekNextToken()
 {
-    return m_tokens.front();
+    return tokens.front();
 }
 

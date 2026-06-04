@@ -10,7 +10,7 @@ The project consists of three primary layers:
 
 1. **Orchestrator (Tiramisu CLI):** Manages remote hosts via SSH. It handles the local cross-compilation of user code into architecture-specific Shared Objects and automates deployment.
 2. **Edge Gateway (Nginx):** Acts as the entry point. It serves static assets (SSG) and proxies dynamic API requests to the Caffeine server via Unix Domain Sockets.
-3. **Execution Engine (Caffeine Server):** A C-based server that utilizes a pre-forked worker pool and `SO_REUSEPORT`. It dynamically loads (.dlopen) handler binaries into its memory space, executing logic through a unified C-ABI.
+3. **Execution Engine (Caffeine Server):** A C-based server that utilizes a pre-forked worker pool and `SO_REUSEPORT`. It dynamically loads (`dlopen`) handler binaries into its memory space, executing logic through a unified C-ABI.
 
 ---
 
@@ -61,6 +61,58 @@ tiramisu/
 
 ---
 
+## Installation
+
+Tiramisu can be compiled from source and installed globally. The build process places the CLI binary into your system path, while environment profiles remain completely isolated to standard user permissions.
+
+### 1. Install System Dependencies
+
+Ensure your host machine has a compiler supporting C++20, standard development tools, and `libssh` installed.
+
+* **Ubuntu/Debian:**
+```bash
+sudo apt install build-essential c++ libssh-dev
+
+```
+
+
+* **macOS:**
+```bash
+brew install libssh
+
+```
+
+
+
+### 2. Compile and Install Globally
+
+Clone the source repository, compile the project, and link it directly to your global environment stream:
+
+```bash
+git clone https://github.com/your-username/tiramisu.git
+cd tiramisu
+make && sudo make install
+
+```
+
+* `make` triggers localized compiler optimizations (`-O3`) and compiles the native C++ binary.
+* `sudo make install` maps the compiled executable into `/usr/local/bin/tiramisu`.
+
+### 3. Initialize the Local Cloud Environment
+
+Tiramisu does not pollute your distinct project directories with complex configurations. Instead, it relies on a shared, global environment infrastructure.
+
+To initialize and boot your local testing nodes (`env-alpha` and `env-beta`), run:
+
+```bash
+tiramisu local start
+
+```
+
+> **Note:** On first launch, the CLI automatically detects if your workspace is missing config mappings. It will safely unpack its embedded Docker Compose stack, custom Nginx configurations, and standard initialization scripts into `~/.tiramisu/local-cluster/` under your normal user privileges before starting the environments.
+
+---
+
 ## Technical Specifications
 
 * **Concurrency Model:** Multi-process Shared Listener (Linux SO_REUSEPORT).
@@ -73,7 +125,7 @@ tiramisu/
 
 ## Build Requirements
 
-* **Local:** Docker (for cross-compilation), SSH client.
-* **Remote:** Linux (Kernel 3.9+ for SO_REUSEPORT), Nginx, Glibc.
+* **Local Machine:** Docker (for cross-compilation engines), SSH client.
+* **Remote Host:** Linux (Kernel 3.9+ for SO_REUSEPORT), Nginx, Glibc.
 
 This architecture ensures that even the smallest ARM devices can function as robust cloud nodes, prioritizing high-concurrency and minimal administrative overhead.

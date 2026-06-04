@@ -172,7 +172,7 @@ bool SshHandler::verify_knownhost(ssh_session session)
     return true;
 }
 
-  bool SshHandler::sshConnect(const std::string& host, const std::string& user, int port, const char* password = nullptr)
+  bool SshHandler::sshConnect(const std::string& host, const std::string& user, int port, const char* password)
   {
     if (sshSession) { sshDisconnect(); }
     

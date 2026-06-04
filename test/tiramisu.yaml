@@ -3,8 +3,9 @@ project:
   name: "test"
 
 environments:
-  production:
-    host: "192.168.1.50"
-    user: "root"
-    identity: "~/.ssh/id_rsa"
-    port: 22
+  # Use 'tiramisu host add' to append target server nodes here
+  local:
+    host: # "127.0.0.1"
+    user: # "root"
+    identity: # ~/.ssh/id_rsa
+    port: # 22

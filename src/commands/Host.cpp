@@ -1,5 +1,6 @@
 #include <commands/Host.hpp>
 #include <SshHandler.hpp>
+#include <project.hpp>
 
 std::string Host::getName() const { return "host"; }
 
@@ -14,6 +15,8 @@ void Host::execute(const Command& command) {
     }
     if (command.arguments.size() == 0) throw std::runtime_error(std::string(getHelp()));
     auto const sub_command = command.arguments.front();
+    std::cout << "sub_command: " << sub_command << std::endl;    
+    commandsMap[sub_command](std::move(command));
 }
 
 void Host::add(const Command&& command) {
@@ -30,22 +33,48 @@ void Host::add(const Command&& command) {
 }
 
 void Host::list(const Command&& command) {
-    (void)command;
-    std::ifstream hosts_file("tiramisu.yaml");
-    if (!hosts_file.is_open()) {
-        std::cerr << "Warning: could not open hosts.yaml\n";
-        return ;
+    #if DEBUG
+        std::cout << "host list\n";
+    #endif
+    auto dir = command.options.find("--dir");
+    std::filesystem::path path = dir != command.options.end()
+                                ? std::filesystem::path(dir->second)
+                                : std::filesystem::current_path();
+    if (auto project_opt = Project::loadFromContext(path)) {        
+        Project project = std::move(*project_opt);
+        project.print();
+    } else {
+        std::cerr << "Could not initialize project configuration.\n";
     }
-    std::string line;
-    while (std::getline(hosts_file, line)) {
-        std::cout << line << "\n";
-    }
-    hosts_file.close();
 }
 
-std::string Host::getArch() const {
-    const auto handler = std::make_unique<SshHandler>();
-    const std::string arch = handler->getArch();
+std::string Host::getArch(const Command&& command) const {
+    #if DEBUG
+        std::cout << "host --arhc\n";
+    #endif
+    std::string arch = "";
+    auto dir = command.options.find("--dir");
+    std::filesystem::path path = dir != command.options.end()
+                                ? std::filesystem::path(dir->second)
+                                : std::filesystem::current_path();
+
+    if (auto project_opt = Project::loadFromContext(path)) {
+        Project project = std::move(*project_opt);
+        auto env = command.options.find("--env");
+        if (env != command.options.end()) {
+            if (auto getEnv = project.getEnv(env->second)) {
+                SshHandler handler = SshHandler();
+                handler.setHost(std::move(getEnv->host));
+                handler.setUser(std::move(getEnv->user));
+                handler.setPort(std::move(getEnv->port));
+                arch = handler.getArch();
+            }
+        } else {
+            throw std::runtime_error("error: environment name missing. Use --env <env_name>");
+        }
+    } else {
+        std::cerr << "Could not initialize project configuration.\n";
+    }
     return arch; 
 }
 

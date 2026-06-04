@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  env-alpha:
+    build:
+      context: .
+      dockerfile: Dockerfile.runtime
+    container_name: tiramisu-env-alpha
+    ports:
+      - "8081:80"
+      - "2221:22"
+    volumes:
+      - alpha_apps:/var/tiramisu/apps
+    environment:
+      - ENV_NAME=alpha
+      - DB_HOST=db-alpha
+      - DB_USER=tiramisu_user
+      - DB_PASSWORD=tiramisu_pass
+      - DB_NAME=tiramisu_alpha
+    depends_on:
+      - db-alpha
+
+  db-alpha:
+    image: postgres:16-alpine
+    container_name: tiramisu-db-alpha
+    environment:
+      POSTGRES_USER: tiramisu_user
+      POSTGRES_PASSWORD: tiramisu_pass
+      POSTGRES_DB: tiramisu_alpha
+    volumes:
+      - db_alpha_data:/var/lib/postgresql/data
+
+  env-beta:
+    build:
+      context: .
+      dockerfile: Dockerfile.runtime
+    container_name: tiramisu-env-beta
+    ports:
+      - "8082:80"
+      - "2222:22"
+    volumes:
+      - beta_apps:/var/tiramisu/apps
+    environment:
+      - ENV_NAME=beta
+      - DB_HOST=db-beta
+      - DB_USER=tiramisu_user
+      - DB_PASSWORD=tiramisu_pass
+      - DB_NAME=tiramisu_beta
+    depends_on:
+      - db-beta
+
+  db-beta:
+    image: postgres:16-alpine
+    container_name: tiramisu-db-beta
+    environment:
+      POSTGRES_USER: tiramisu_user
+      POSTGRES_PASSWORD: tiramisu_pass
+      POSTGRES_DB: tiramisu_beta
+    volumes:
+      - db_beta_data:/var/lib/postgresql/data
+
+volumes:
+  alpha_apps:
+  beta_apps:
+  db_alpha_data:
+  db_beta_data:

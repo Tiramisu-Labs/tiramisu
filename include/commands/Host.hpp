@@ -19,13 +19,13 @@ inline constexpr std::string_view HOST_HELP = R"(
         host reset [--keep-db] [-y, --yes]: Wipes out all deployed application functions while leaving the underlying Nginx, Caffeine, and database configurations intact.
         host purge [-y, --yes]: The destructive deep-clean. Uninstalls Nginx, deletes the Caffeine binary, wipes all systemd services, and flushes all storage folders.
         host add <env_name> [--ip <string>] [--user <string>] [--password <string>] [--port <int>]: add a new host to the hosts list
-        host list: list stored hosts
+        host ls list: list stored hosts
         host test <env_name>: test connection with the specified host
 )";
 
 class Host : public ICommand {
     private:
-    std::string getArch() const;
+    std::string getArch(const Command&& command) const;
     // factory method
     void add(const Command&& command);
     void list(const Command&& command);

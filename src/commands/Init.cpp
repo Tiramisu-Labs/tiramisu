@@ -12,7 +12,11 @@ std::string_view Init::getHelp() const {
     return INIT_HELP;
 }
 
-static inline void initProject(const std::string& project_name, const std::string& api_path) {
+static inline void initProject(const std::string& project_name) {
+    if (std::filesystem::exists(project_name)) {
+        std::cout << "error: folder already exists: " << project_name << std::endl;
+        return;
+    }
     std::filesystem::create_directory(project_name);
     std::filesystem::create_directory(project_name + "/api");
     std::filesystem::create_directory(project_name + "/static");
@@ -26,12 +30,13 @@ static inline void initProject(const std::string& project_name, const std::strin
     outfile << "# Tiramisu Project Configuration\n"
             << "project:\n"
             << "  name: \"" << project_name << "\"\n\n"
-            << "routing:\n"
-            << "  prefix: \"" << api_path << "\"\n"
-            << "  root_dir: \"./api\"\n\n"
             << "environments:\n"
-            << "  # Use 'tiramisu host add' to append target server nodes here\n";
-
+            << "  # Use 'tiramisu host add' to append target server nodes here\n"
+            << "  local:\n"
+            << R"(    host: # "127.0.0.1")" << '\n' 
+            << R"(    user: # "root")" << '\n'
+            << R"(    identity: # ~/.ssh/id_rsa)" << '\n'
+            << "    port: # " << 22 << std::endl;
     outfile.close();
 
     std::cout << "project " + project_name + " succesfully created\n";
@@ -56,5 +61,5 @@ void Init::execute(const Command& command) {
     //     }
     // }
 
-    initProject(project_name, default_api_path);
+    initProject(project_name);
 }

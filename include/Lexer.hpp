@@ -10,10 +10,10 @@
 class Lexer
 {
     private:
-        int m_argc;
-        std::deque<Token> m_tokens;
-        const std::unordered_set<std::string> m_boolean_flags = {"--verbose", "-v", "--help", "-h"};
-        const std::unordered_set<std::string> m_options_with_value_next_arg = {"--output", "-o"};
+        int argc;
+        std::deque<Token> tokens;
+        const std::unordered_set<std::string> flags = {"--verbose", "-v", "--help", "-h", "--arch"};
+        const std::unordered_set<std::string> options = {"--output", "-o", "--dir", "-d", "--env", "-e"};
 
     public:
         Lexer() = default;
