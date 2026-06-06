@@ -13,10 +13,15 @@ services:
       context: .
       dockerfile: Dockerfile.runtime
     container_name: tiramisu-env-alpha
+    privileged: true
+    tmpfs:
+      - /run
+      - /run/lock
     ports:
       - "8081:80"
       - "2221:22"
     volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
       - alpha_apps:/var/tiramisu/apps
     environment:
       - ENV_NAME=alpha
@@ -42,10 +47,15 @@ services:
       context: .
       dockerfile: Dockerfile.runtime
     container_name: tiramisu-env-beta
+    privileged: true
+    tmpfs:
+      - /run
+      - /run/lock
     ports:
       - "8082:80"
       - "2222:22"
     volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
       - beta_apps:/var/tiramisu/apps
     environment:
       - ENV_NAME=beta
@@ -76,34 +86,30 @@ volumes:
 constexpr std::string_view DOCKERFILE = R"(
 FROM ubuntu:24.04
 
-# Avoid prompts during apt install
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install Nginx, SSH, and basic compilation tools for Caffeine
+# Install systemd, SSH, and minimal tools required for testing
 RUN apt-get update && apt-get install -y \
-    nginx \
+    systemd \
+    systemd-sysv \
     openssh-server \
     build-essential \
-    gcc \
     curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Clean up systemd target units we don't need in a container (keeps it fast)
+RUN rm -f /lib/systemd/system/multi-user.target.wants/getty.target
 
 # Configure SSH daemon
 RUN mkdir /var/run/sshd
 RUN echo 'root:tiramisu_local_dev' | chpasswd
 RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 
-# Set up Tiramisu internal directory paths
-RUN mkdir -p /var/run/tiramisu && mkdir -p /var/tiramisu/apps
-
-# Copy Nginx config and startup entrypoint script
-COPY nginx.conf /etc/nginx/nginx.conf
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
+# Expose ports for Nginx (80) and SSH (22)
 EXPOSE 80 22
 
-ENTRYPOINT ["/entrypoint.sh"]
+# Tell Docker to boot systemd as the primary init system
+CMD ["/lib/systemd/systemd"]
 )";
 
 // The embedded nginx.conf

@@ -260,3 +260,97 @@ tiramisu deploy billing/ --host 192.168.1.50 --release --verbose
 # Walks billing/ folder, compiles all files inside, syncs them up to /var/lib/tiramisu/functions/billing/
 
 ```
+
+---
+
+## 6. Local Virtualized Cloud Orchestration (`tiramisu local ...`)
+
+These commands manage your global, shared local testing playground. It abstracts Docker Compose to spin up isolated container nodes (`env-alpha` and `env-beta`) directly on your machine, mimicking your real Raspberry Pi edge nodes without polluting your host OS.
+
+### `tiramisu local start`
+
+Initializes and runs the background containerized infrastructure stack on your development machine.
+
+* **Flags & Options:**
+* `--build`: Forces Docker to rebuild the runtime images from scratch, updating any internal base configurations.
+
+
+* **Under-the-Hood Execution Flow:**
+1. **Self-Healing Probe:** Looks for the global directory `~/.tiramisu/local-cluster/`. If it is missing, the CLI creates the path and materializes the embedded `docker-compose.yml`, `nginx.conf`, and `Dockerfile.runtime` templates directly from the binary's internal memory string view.
+2. **Stack Launch:** Spatially maps and boots the cluster silently in the background:
+```bash
+docker compose -f ~/.tiramisu/local-cluster/docker-compose.yml up -d
+
+```
+
+
+3. **Print Access Map:** Outputs a clean networking matrix showing where the developer can target deployments and send API requests locally.
+
+
+
+---
+
+### `tiramisu local stop`
+
+Safely halts all locally running Tiramisu environment nodes and their stateful databases without deleting any data.
+
+* **Under-the-Hood Execution Flow:**
+Executes a direct stop command against the global tracking structure:
+```bash
+docker compose -f ~/.tiramisu/local-cluster/docker-compose.yml stop
+
+```
+
+
+
+---
+
+### `tiramisu local status`
+
+Renders an administrative breakdown of your local containers, verifying resource consumption and port mapping status.
+
+* **Under-the-Hood Execution Flow:**
+Queries Docker to see if `tiramisu-env-alpha` and `tiramisu-env-beta` are healthy, displaying which ports are actively listening on `localhost` (`2221`, `2222`, `8081`, `8082`).
+
+---
+
+### `tiramisu local clean`
+
+Wipes out all local container states, dropping database volumes and erasing all deployed test `.so` files to return your local system back to a blank canvas.
+
+* **Flags & Options:**
+* `-y, --yes`: Directly forces bypass of terminal security locks.
+
+
+* **Under-the-Hood Execution Flow:**
+Tears down the containers and explicitly wipes out the persistent Docker volumes mapped to your local environments:
+```bash
+docker compose -f ~/.tiramisu/local-cluster/docker-compose.yml down -v
+
+```
+
+---
+
+## Updated Quick Example Scenarios
+
+Adding this command cleans up your testing workflows beautifully. You can append this new scenario to show off how the local cluster interacts with your existing deployment system:
+
+### Scenario C: Testing multi-project environments entirely on your local machine
+
+```bash
+# 1. Boot up your local global cloud infrastructure once
+tiramisu local start
+
+# 2. Deploy your payment service to the local Alpha engine node
+tiramisu deploy services/billing/ --host 127.0.0.1 --port 2221
+# Live locally at: http://localhost:8081/api/v1/billing
+
+# 3. Deploy your authentication service to the local Beta engine node
+tiramisu deploy services/auth/ --host 127.0.0.1 --port 2222
+# Live locally at: http://localhost:8082/api/v1/auth
+
+```
+
+---
+
+How are you planning to parse the commands and arguments in your C++ CLI (`CLI.cpp`/`Parser.cpp`)? Are you writing a custom token loop, or are you utilizing a lightweight single-header library like `CLI11` to handle the subcommand nested structures?
