@@ -19,6 +19,7 @@ enum class Commands
     SETUP,
     HELP,
     UNISTALL,
+    LOCAL,
     SIZE
 };
 

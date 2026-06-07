@@ -42,7 +42,7 @@ install: $(NAME)
 	@cp $(NAME) $(DESTDIR)$(PREFIX)/bin/$(NAME)
 	@chmod +x $(DESTDIR)$(PREFIX)/bin/$(NAME)
 	@echo "=========================================================="
-	@echo " 🎉 $(NAME) binary successfully installed to $(PREFIX)/bin!"
+	@echo "$(NAME) binary successfully installed to $(PREFIX)/bin!"
 	@echo " Note: Local cluster configs will initialize automatically"
 	@echo "       in ~/.tiramisu/ when you run the app as a normal user."
 	@echo "=========================================================="

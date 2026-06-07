@@ -9,7 +9,7 @@
 #include <commands/Build.hpp>
 #include <commands/Install.hpp>
 #include <commands/Create.hpp>
-
+#include <commands/Local.hpp>
 #include <algorithm>
 #include <ranges>
 #include <fstream>
@@ -36,7 +36,8 @@ static std::map<std::string, Commands> commandsMap = {
     {"install", Commands::INSTALL},
     {"setup", Commands::SETUP},
     {"webserver", Commands::WEBSERVER},
-    {"help", Commands::HELP}
+    {"help", Commands::HELP},
+    {"local", Commands::LOCAL}
 };
 
 CLI::CLI(std::unique_ptr<Parser> parser, const std::string& env_path)
@@ -179,5 +180,6 @@ void CLI::registerCommandFactories() {
     m_commandFactories[static_cast<size_t>(Commands::CREATE)] = [&]() { return std::make_unique<Create>(); };
     m_commandFactories[static_cast<size_t>(Commands::INSTALL)] = [&]() { return std::make_unique<Install>(); };
     m_commandFactories[static_cast<size_t>(Commands::SETUP)] = [&]() { return std::make_unique<Setup>(); };
+    m_commandFactories[static_cast<size_t>(Commands::LOCAL)] = [&]() { return std::make_unique<Local>(); };
     m_commandFactories[static_cast<size_t>(Commands::WEBSERVER)] = [&]() { return std::make_unique<Webserver>(); };
 }

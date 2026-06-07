@@ -20,15 +20,24 @@ void Host::execute(const Command& command) {
 }
 
 void Host::add(const Command&& command) {
+    if (command.arguments.empty()) {
+        std::cerr << "error: an env name is required.\n\n" << getHelp();
+        return ;
+    }
+    const auto env_name = command.arguments[0];
     if (!command.options.contains("--ip")) {
         std::cerr << "tiramisu: error: an ip is required.\n" << getHelp() << std::endl;
         return;
     }
     const std::string ip = command.options.find("--ip")->second;
-    std::string user = command.options.contains("--user") ? command.options.find("--user")->second : "root";
-    std::string key = command.options.contains("--key") ? command.options.find("--key")->second : "~/.ssh/id_rsa";
-    std::string port = command.options.contains("--port") ? command.options.find("--port")->second : "22";
+    const std::string user = command.options.contains("--user") ? command.options.find("--user")->second : "root";
+    const std::string key = command.options.contains("--key") ? command.options.find("--key")->second : "~/.ssh/id_rsa";
+    const std::string port = command.options.contains("--port") ? command.options.find("--port")->second : "22";
 
+    // try to enstablish and ssh connection
+    std::cout << "Probing target node: " << user << "@" << ip << ":" << port << "...\n";
+    SshHandler handler = SshHandler();
+    // bool isConnect = handler.sshConnect(ip, user, std::atoi(port.c_str()));
 
 }
 

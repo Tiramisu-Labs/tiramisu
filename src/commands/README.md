@@ -310,7 +310,7 @@ docker compose -f ~/.tiramisu/local-cluster/docker-compose.yml stop
 Renders an administrative breakdown of your local containers, verifying resource consumption and port mapping status.
 
 * **Under-the-Hood Execution Flow:**
-Queries Docker to see if `tiramisu-env-alpha` and `tiramisu-env-beta` are healthy, displaying which ports are actively listening on `localhost` (`2221`, `2222`, `8081`, `8082`).
+Queries Docker to see if `tiramisu-env-alpha` and `tiramisu-env-beta` are healthy, displaying which ports are actively listening on `localhost` (`2221`, `2222`, `8082`, `8083`).
 
 ---
 

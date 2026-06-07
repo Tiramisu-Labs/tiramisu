@@ -5,8 +5,6 @@ namespace Tiramisu::Templates {
 
 // The embedded docker-compose.yml
 constexpr std::string_view DOCKER_COMPOSE = R"yaml(
-version: '3.8'
-
 services:
   env-alpha:
     build:
@@ -18,7 +16,7 @@ services:
       - /run
       - /run/lock
     ports:
-      - "8081:80"
+      - "8082:80"
       - "2221:22"
     volumes:
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
@@ -52,7 +50,7 @@ services:
       - /run
       - /run/lock
     ports:
-      - "8082:80"
+      - "8083:80"
       - "2222:22"
     volumes:
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
