@@ -16,7 +16,6 @@ class CLI
 {
     private:
         std::unique_ptr<Parser> m_parser;
-        std::unique_ptr<Webserver> webserver;
         std::map<std::string, std::string> m_env;
         std::unique_ptr<SshHandler> m_sshHandler;
         

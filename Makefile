@@ -4,7 +4,7 @@ NAME = tiramisu
 SRCDIR = src
 SRC = Lexer.cpp CLI.cpp main.cpp Parser.cpp SshHandler.cpp \
       commands/Host.cpp commands/Build.cpp commands/Setup.cpp \
-      commands/Webserver.cpp commands/Install.cpp commands/Init.cpp \
+      commands/Install.cpp commands/Init.cpp \
       commands/Create.cpp project.cpp commands/Local.cpp
 
 SRCS = $(addprefix $(SRCDIR)/, $(SRC))

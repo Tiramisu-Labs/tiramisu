@@ -36,7 +36,7 @@ void Host::add(const Command&& command) {
 
     // try to enstablish and ssh connection
     std::cout << "Probing target node: " << user << "@" << ip << ":" << port << "...\n";
-    SshHandler handler = SshHandler();
+    // SshHandler handler = SshHandler();
     // bool isConnect = handler.sshConnect(ip, user, std::atoi(port.c_str()));
 
 }
@@ -72,10 +72,7 @@ std::string Host::getArch(const Command&& command) const {
         auto env = command.options.find("--env");
         if (env != command.options.end()) {
             if (auto getEnv = project.getEnv(env->second)) {
-                SshHandler handler = SshHandler();
-                handler.setHost(std::move(getEnv->host));
-                handler.setUser(std::move(getEnv->user));
-                handler.setPort(std::move(getEnv->port));
+                SshHandler handler = SshHandler(getEnv->host, getEnv->user, getEnv->port);
                 arch = handler.getArch();
             }
         } else {
@@ -89,23 +86,7 @@ std::string Host::getArch(const Command&& command) const {
 
 void Host::test(const Command&& command)
 {   
-    if (command.arguments.size() == 0) {
-        std::cerr << "tiramisu: error: <env_name> missing\n";
-    }
-    const auto alias = command.arguments.front();
-
-    
-
-    const auto handler = std::make_unique<SshHandler>();
-    if (handler->sshConnect()) {
-        try {
-            handler->fillSshHandler(alias);
-        } catch (const std::runtime_error& e) {
-            std::cerr << "Error: " << e.what() << std::endl;
-        }
-    } else {
-        throw std::runtime_error("remote host specs wrongs!");
-    }
+    (void)command;
 }
 
 void Host::setup(const Command &&command)

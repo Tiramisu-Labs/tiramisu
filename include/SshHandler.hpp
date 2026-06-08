@@ -19,34 +19,40 @@ struct SshSessionDeleter {
     }
 };
 
+struct SftpSessionDeleter {
+    void operator()(sftp_session session) const {
+        if (session) {
+            sftp_free(session);
+        }
+    }
+};
+
 class SshHandler
 {
     private:
-        std::unique_ptr<typename std::remove_pointer<ssh_session>::type, SshSessionDeleter> sshSession;
-        std::string m_host      = "";
-        std::string m_user      = "";
-        int m_port              = 22;
-        std::string m_password  = "";
 
+        using SshSessionPtr  = std::unique_ptr<ssh_session_struct, SshSessionDeleter>;
+        using SftpSessionPtr = std::unique_ptr<sftp_session_struct, SftpSessionDeleter>;
+
+        SshSessionPtr sshSession;
+        bool connected = false;
+
+        SftpSessionPtr initSftp();
+        ssh_channel initChannel();
     public:
-        SshHandler() = default;
-        ~SshHandler();
+        SshHandler() = delete;
+        SshHandler(const std::string& host, const std::string& user, int port);
+        SshHandler& operator=(const SshHandler&) = delete;
+
+        ~SshHandler() = default;
     
-        void setHost(std::string&& host);
-        void setUser(std::string&& user);
-        void setPassword(std::string&& password);
-        void setPort(int port);
-        void fillSshHandler(const std::string& alias);
-        void fillSshHandler(std::string host, std::string password, std::string user, std::string port);
-        std::map<std::string, std::string> getHostSpec(const std::string& alias);
         std::string getArch();
         
-        ssh_channel initChannel();
+        int authenticate_kbdint();
         bool sshConnect();
-        bool sshConnect(const std::string& host, const std::string& user, int port, const char* password = nullptr);
-        void sshDisconnect();
+        bool connect_with_password(const std::string& password); // REMOVE IN FINAL PRODUCTION
 
-        bool verify_knownhost(ssh_session session);
+        bool verify_knownhost();
         int exec_remote_command(const std::string& command);
 
         void upload(const std::string path);
