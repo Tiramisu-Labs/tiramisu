@@ -39,24 +39,28 @@ class SshHandler
 
         SftpSessionPtr initSftp();
         ssh_channel initChannel();
+
+        bool sshConnect();
+        bool authenticate_kbdint();
+        bool verify_knownhost();
     public:
         SshHandler() = delete;
-        SshHandler(const std::string& host, const std::string& user, int port);
+        SshHandler(const std::string& host, const std::string& user, int port, const std::string& key_path = "");
         SshHandler& operator=(const SshHandler&) = delete;
 
         ~SshHandler() = default;
     
         std::string getArch();
         
-        int authenticate_kbdint();
-        bool sshConnect();
-        bool connect_with_password(const std::string& password); // REMOVE IN FINAL PRODUCTION
+        bool attemptConnection();
+        bool connect();
+        bool try_password(const std::string& password); // REMOVE IN FINAL PRODUCTION
 
-        bool verify_knownhost();
-        int exec_remote_command(const std::string& command);
+        bool exec_remote_command(const std::string& command);
 
         void upload(const std::string path);
         void serviceUpload(const std::string path);
 
-        bool isConnected() { return sshSession != nullptr; }
+        bool isConnected() const { return sshSession != nullptr; }
+        bool inject_local_public_key(const std::string& custom_pubkey_path);
 };

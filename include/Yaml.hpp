@@ -9,6 +9,8 @@
 #include <sstream>
 #include <stack>
 #include <algorithm>
+#include <stdexcept>
+#include <type_traits>
 
 enum class NodeType : int8_t {
     Null,
@@ -20,18 +22,16 @@ enum class NodeType : int8_t {
 class YAML;
 
 class YAMLNode {
-    private:
+private:
     std::variant<std::monostate, std::string, double, std::unique_ptr<YAML>> value;
     NodeType type = NodeType::Null;
 
-    public:
+public:
     YAMLNode() = default;
     YAMLNode(YAMLNode&&) noexcept = default;
     YAMLNode& operator=(YAMLNode&&) noexcept = default;
     YAMLNode(const YAMLNode&) = delete;
     YAMLNode& operator=(const YAMLNode&) = delete;
-
-    // YAMLNode clone() const;
 
     auto begin();
     auto end();
@@ -59,7 +59,11 @@ class YAMLNode {
 
     template<typename T>
     T as() const {
-        return std::get<T>(value);
+        if constexpr (std::is_integral_v<T> && !std::is_same_v<T, bool>) {
+            return static_cast<T>(std::get<double>(value));
+        } else {
+            return std::get<T>(value);
+        }
     }
 
     YAML* getNestedNode() const {
@@ -69,24 +73,37 @@ class YAMLNode {
         return nullptr;
     }
 
+    void makeNode() {
+        if (type == NodeType::Null) {
+            type = NodeType::Node;
+            value = std::make_unique<YAML>();
+        }
+    }
+
     YAMLNode& operator[](const std::string& key);
+    const YAMLNode& operator[](const std::string& key) const;
 };
 
 class YAML
 {
-    private:
+private:
     std::unordered_map<std::string, YAMLNode> map;
 
-    public:
-
+public:
     YAML() = default;
-    
     YAML(YAML&&) noexcept = default;
     YAML& operator=(YAML&&) noexcept = default;
     YAML(const YAML&) = delete;
     YAML& operator=(const YAML&) = delete;
 
     YAMLNode& operator[](const std::string& key) { return map[key]; }
+    
+    const YAMLNode& operator[](const std::string& key) const {
+        auto it = map.find(key);
+        if (it != map.end()) return it->second;
+        static const YAMLNode null_node;
+        return null_node;
+    }
 
     auto begin() noexcept { return map.begin(); }
     auto end() noexcept   { return map.end(); }
@@ -97,8 +114,7 @@ class YAML
     auto cbegin() const noexcept { return map.cbegin(); }
     auto cend() const noexcept   { return map.cend(); }
 
-    std::unordered_map<std::string, YAMLNode> parseYaml(std::filesystem::path& path);
-
+    static YAML parseYaml(const std::filesystem::path& path);
 };
 
 inline auto YAMLNode::begin() {
@@ -113,25 +129,31 @@ inline auto YAMLNode::end() {
 
 inline auto YAMLNode::begin() const {
     if (type != NodeType::Node) throw std::runtime_error("Cannot iterate over a scalar YAMLNode");
-    return std::get<std::unique_ptr<YAML>>(value)->begin();
+    const YAML* yamlPtr = std::get<std::unique_ptr<YAML>>(value).get();
+    return yamlPtr->begin();
 }
 
 inline auto YAMLNode::end() const {
     if (type != NodeType::Node) throw std::runtime_error("Cannot iterate over a scalar YAMLNode");
-    return std::get<std::unique_ptr<YAML>>(value)->end();
+    const YAML* yamlPtr = std::get<std::unique_ptr<YAML>>(value).get();
+    return yamlPtr->end();
 }
 
 inline YAMLNode& YAMLNode::operator[](const std::string& key) {
-    if (type == NodeType::Null) {
-        type = NodeType::Node;
-        value = std::make_unique<YAML>();
-    }
-
+    makeNode();
     if (type == NodeType::Node) {
         return (*std::get<std::unique_ptr<YAML>>(value))[key];
     }
-
     throw std::runtime_error("Error: Cannot use [] on a scalar value (String/Number)");
+}
+
+inline const YAMLNode& YAMLNode::operator[](const std::string& key) const {
+    if (type == NodeType::Node) {
+        const YAML* yamlPtr = std::get<std::unique_ptr<YAML>>(value).get();
+        return (*yamlPtr)[key];
+    }
+    static const YAMLNode null_node;
+    return null_node;
 }
 
 inline std::string trim(const std::string& str) {
@@ -141,9 +163,9 @@ inline std::string trim(const std::string& str) {
     return str.substr(first, (last - first + 1));
 }
 
-inline std::unordered_map<std::string, YAMLNode> YAML::parseYaml(std::filesystem::path& path)
+inline YAML YAML::parseYaml(const std::filesystem::path& path)
 {
-    std::unordered_map<std::string, YAMLNode> resultMap;
+    YAML root;
     std::ifstream file(path);
     if (!file.is_open()) {
         throw std::runtime_error("Failed to open YAML file: " + path.string());
@@ -176,8 +198,8 @@ inline std::unordered_map<std::string, YAMLNode> YAML::parseYaml(std::filesystem
         YAMLNode* currentNode = nullptr;
 
         if (nodeStack.empty()) {
-            resultMap[key] = YAMLNode();
-            currentNode = &resultMap[key];
+            root.map[key] = YAMLNode();
+            currentNode = &root.map[key];
         } else {
             YAML* currentParentYaml = nodeStack.top().second;
             (*currentParentYaml)[key] = YAMLNode();
@@ -201,13 +223,11 @@ inline std::unordered_map<std::string, YAMLNode> YAML::parseYaml(std::filesystem
                 *currentNode = valStr;
             }
         } else {
-            (*currentNode)["__dummy_init__"]; 
-            
+            currentNode->makeNode(); 
             YAML* childYaml = currentNode->getNestedNode();
-            
             nodeStack.push({indent, childYaml});
         }
     }
 
-    return resultMap;
+    return root;
 }

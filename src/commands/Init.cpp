@@ -32,11 +32,11 @@ static inline void initProject(const std::string& project_name) {
             << "  name: \"" << project_name << "\"\n\n"
             << "environments:\n"
             << "  # Use 'tiramisu host add' to append target server nodes here\n"
-            << "  local:\n"
-            << R"(    host: # "127.0.0.1")" << '\n' 
-            << R"(    user: # "root")" << '\n'
-            << R"(    identity: # ~/.ssh/id_rsa)" << '\n'
-            << "    port: # " << 22 << std::endl;
+            << "  # local:\n"
+            << R"(    # host: "127.0.0.1")" << '\n' 
+            << R"(    # user: "root")" << '\n'
+            << R"(    # identity: ~/.ssh/id_rsa)" << '\n'
+            << "    #  port: " << 22 << std::endl;
     outfile.close();
 
     std::cout << "project " + project_name + " succesfully created\n";

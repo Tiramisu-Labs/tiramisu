@@ -92,7 +92,7 @@ void Local::start(const Command&& command)
     std::cout << "\nLocal Cloud Mesh Environment successfully deployed!\n"
               << " -> env-alpha targets | HTTP: localhost:8082 | SSH: localhost:2221 (Pass: tiramisu_local_dev)\n"
               << " -> env-beta  targets | HTTP: localhost:8083 | SSH: localhost:2222 (Pass: tiramisu_local_dev)\n\n"
-              << "Run 'tiramisu host add --ip 127.0.0.1 --port 2221' to provision env-alpha.\n";
+              << "Run 'tiramisu host add <env_name> --ip 127.0.0.1 --port 2221' to provision env-alpha.\n";
 }
 
 void Local::stop(const Command&& command)

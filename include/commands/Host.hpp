@@ -23,9 +23,97 @@ inline constexpr std::string_view HOST_HELP = R"(
         host test <env_name>: test connection with the specified host
 )";
 
+inline constexpr std::string_view SETUP_SCRIPT = R"SCRIPT(#!/bin/bash
+# ==============================================================================
+# Tiramisu Platform - Remote Host Provisioning Script (Universal Mode)
+# ==============================================================================
+set -euo pipefail
+
+# --- PRIVILEGE DETECTION ---
+if [ "$(id -u)" -eq 0 ]; then
+    SUDO=""
+elif command -v sudo >/dev/null 2>&1; then
+    SUDO="sudo"
+else
+    echo "Error: This script requires root privileges, but sudo is not installed." >&2
+    exit 1
+fi
+
+# --- CONFIGURATION LAYER ---
+REPO_URL="https://github.com/Tiramisu-Labs/caffeine.git" 
+BUILD_DIR="/tmp/caffeine_compile"
+CAFFEINE_ARGS="--port 80"
+
+echo "Starting Caffeine provisioning..."
+
+# 1. Install System Dependencies
+echo "Step 1: Installing build tools..."
+$SUDO apt-get update && $SUDO apt-get install -y gcc make git
+
+# 2. Create System Infrastructure
+echo "Step 2: Creating platform directories..."
+$SUDO mkdir -p /var/log/tiramisu/
+$SUDO mkdir -p /var/lib/tiramisu/functions/
+
+# 3. Download and Build Caffeine Natively
+echo "Step 3: Cloning and compiling Caffeine source..."
+$SUDO rm -rf "$BUILD_DIR"
+git clone "$REPO_URL" "$BUILD_DIR"
+cd "$BUILD_DIR"
+
+# Compile using the Makefile
+make clean
+make DEBUG=0
+
+# 4. Install Binary via Makefile
+echo "Step 4: Installing binary via Makefile..."
+$SUDO make install
+
+# 5 & 6. Process Management Layer (Systemd vs Standalone Background)
+if [ -d /run/systemd/system ]; then
+    echo "Step 5: Systemd detected. Registering service..."
+    $SUDO tee /etc/systemd/system/caffeine.service > /dev/null << EOF
+[Unit]
+Description=Caffeine Standalone Server Runtime Engine
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/caffeine ${CAFFEINE_ARGS}
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    echo "Step 6: Launching service via systemd..."
+    $SUDO systemctl daemon-reload
+    $SUDO systemctl enable --now caffeine
+else
+    echo "Step 5: Systemd NOT detected (Container/WSL environment). Skipping service registration..."
+    
+    echo "Step 6: Launching Caffeine as a background daemon process..."
+    # Kill any existing raw instances to prevent port binding conflicts
+    $SUDO killall caffeine 2>/dev/null || true
+    
+    # Run in background, redirect output to the proper log directory, detach from SSH terminal
+    $SUDO nohup /usr/local/bin/caffeine ${CAFFEINE_ARGS} >> /var/log/tiramisu/caffeine.log 2>&1 &
+    
+    echo "Process spawned in background. Logs routing to /var/log/tiramisu/caffeine.log"
+fi
+
+# 7. Cleanup Build Garbage
+echo "Step 7: Cleaning up temporary compilation files..."
+$SUDO rm -rf "$BUILD_DIR"
+
+echo "Caffeine successfully provisioned and running!"
+)SCRIPT";
+
+
 class Host : public ICommand {
     private:
-    std::string getArch(const Command&& command) const;
+    std::string getArch(const std::string& dir = "", const std::string& env = "") const;
     // factory method
     void add(const Command&& command);
     void list(const Command&& command);

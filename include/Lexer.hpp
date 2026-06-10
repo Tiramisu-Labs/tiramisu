@@ -13,7 +13,16 @@ class Lexer
         int argc;
         std::deque<Token> tokens;
         const std::unordered_set<std::string> flags = {"--verbose", "-v", "--help", "-h", "--arch"};
-        const std::unordered_set<std::string> options = {"--output", "-o", "--dir", "-d", "--env", "-e"};
+        const std::unordered_set<std::string> options = {
+            "--output", "-o",
+            "--dir", "-d",
+            "--env", "-e",
+            "--ip",
+            "--user", "-u",
+            "--key",
+            "--port",
+            "--password", "-p"
+        };
 
     public:
         Lexer() = default;

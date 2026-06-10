@@ -107,7 +107,7 @@ RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/
 EXPOSE 80 22
 
 # Tell Docker to boot systemd as the primary init system
-CMD ["/lib/systemd/systemd"]
+CMD ["/bin/sh", "-c", "mkdir -p /run/sshd && exec /usr/sbin/sshd -D"]
 )";
 
 // The embedded nginx.conf

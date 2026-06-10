@@ -1,8 +1,13 @@
-#include <project.hpp>
-#include <yaml.hpp>
+#include <Project.hpp>
+#include <Yaml.hpp>
 
-Project::Project(const std::string& n, const std::unordered_map<std::string, Environment>&& environments)
-    : name(n), envs(std::move(environments)) {};
+Project::Project(
+    const std::string& n,
+    const std::unordered_map<std::string, Environment> environments,
+    std::filesystem::path& path
+)
+    : name(n), envs(std::move(environments)), configPath(path) {};
+
 
 std::optional<Environment> Project::getEnv(const std::string& env_name) const {
     auto it = envs.find(env_name);
@@ -11,8 +16,6 @@ std::optional<Environment> Project::getEnv(const std::string& env_name) const {
     }
     return std::nullopt;
 }
-
-
 
 std::optional<Project> Project::loadFromContext(std::filesystem::path start_dir) {
     std::filesystem::path config_path;
@@ -29,14 +32,10 @@ std::optional<Project> Project::loadFromContext(std::filesystem::path start_dir)
         }
         start_dir = start_dir.parent_path();
     }
+
     try {
         YAML yaml;
-        auto parsed_map = yaml.parseYaml(config_path);
-        
-        YAML root_yaml;
-        for (auto& [k, v] : parsed_map) {
-            root_yaml[k] = std::move(v);
-        }
+        auto root_yaml = yaml.parseYaml(config_path); 
 
         std::string project_name = "Untitled";
         if (root_yaml["project"]["name"].isString()) {
@@ -49,22 +48,27 @@ std::optional<Project> Project::loadFromContext(std::filesystem::path start_dir)
             if (!env_node.isNode()) continue;
             
             Environment env;
-            auto& mutable_node = const_cast<YAMLNode&>(env_node);
-
-            if (mutable_node["host"].isString())     env.host = mutable_node["host"].as<std::string>();
-            if (mutable_node["user"].isString())     env.user = mutable_node["user"].as<std::string>();
-            if (mutable_node["identity"].isString()) env.key  = mutable_node["identity"].as<std::string>();
-            if (mutable_node["port"].isNumber())     env.port = static_cast<int>(mutable_node["port"].as<double>());
+            if (env_node["host"].isString())      env.host = env_node["host"].as<std::string>();
+            if (env_node["user"].isString())      env.user = env_node["user"].as<std::string>();
+            if (env_node["key"].isString())       env.key  = env_node["key"].as<std::string>();
+            
+            if (env_node["port"].isNumber()) {
+                env.port = env_node["port"].as<int>(); 
+            }
 
             envs[env_key] = std::move(env);
         }
 
-        return Project(project_name, std::move(envs));
+        return Project(project_name, std::move(envs), config_path);
 
     } catch (const std::exception& e) {
         std::cerr << "Parser error: " << e.what() << std::endl;
         return std::nullopt;
     }
+}
+
+void Project::addOrUpdateEnv(const std::string& env_name, const Environment& env) {
+    envs[env_name] = env;
 }
 
 void Project::print() const
@@ -75,7 +79,29 @@ void Project::print() const
         std::cout << "  " << key << ":\n";
         std::cout << "    host: " << value.host << "\n"
                   << "    user: " << value.user << "\n"
-                  << "    identity: " << value.key << "\n"
+                  << "    key: " << value.key << "\n"
                   << "    port: " << value.port << "\n";
     }
+}
+
+bool Project::save() const {
+    std::ofstream file(configPath);
+    if (!file.is_open()) {
+        std::cerr << "error: could not open config file for saving: " << configPath << "\n";
+        return false;
+    }
+
+    file << "project:\n  name: \"" << name << "\"\n\n";
+    file << "environments:\n";
+    
+    for (const auto& [env_name, env] : envs) {
+        file << "  " << env_name << ":\n";
+        file << "    host: " << env.host << "\n";
+        file << "    user: " << env.user << "\n";
+        file << "    port: " << env.port << "\n";
+        if (!env.key.empty()) {
+            file << "    key: " << env.key << "\n";
+        }
+    }    
+    return true;
 }

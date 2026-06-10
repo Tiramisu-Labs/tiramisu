@@ -5,14 +5,19 @@
 #include <fstream>
 #include <fcntl.h>
 #include <cstring>
+#include <termios.h>
 
-SshHandler::SshHandler(const std::string& host, const std::string& user, int port)
+SshHandler::SshHandler(const std::string& host, const std::string& user, int port, const std::string& key_path)
 {
     sshSession = SshSessionPtr(ssh_new());
     if (sshSession) {
         ssh_options_set(sshSession.get(), SSH_OPTIONS_HOST, host.c_str());
-        ssh_options_set(sshSession.get(), SSH_OPTIONS_PORT, &port);
         ssh_options_set(sshSession.get(), SSH_OPTIONS_USER, user.c_str());
+        ssh_options_set(sshSession.get(), SSH_OPTIONS_PORT, &port);
+
+        if (!key_path.empty()) {
+            ssh_options_set(sshSession.get(), SSH_OPTIONS_IDENTITY, key_path.c_str());
+        }
     } else {
         throw std::runtime_error("Failed to allocate memory structure for libssh session.");
     }
@@ -42,33 +47,41 @@ ssh_channel SshHandler::initChannel() {
     ssh_channel channel;
     int rc;
 
-    if (!sshConnect()) {
+    if (!connect()) {
         const char *err = ssh_get_error(sshSession.get());
-        throw std::runtime_error(err);
+        std::cerr << err;
+        return NULL;
     }
     channel = ssh_channel_new(sshSession.get());
 
     if (channel == NULL) {
         const char *err = ssh_get_error(sshSession.get());
-        throw std::runtime_error(err);
+        std::cerr << err;
+        return NULL;
     }
     
     rc = ssh_channel_open_session(channel);
     if (rc != SSH_OK) {
         ssh_channel_free(channel);
         const char *err = ssh_get_error(sshSession.get());
-        throw std::runtime_error(err);
+        std::cerr << err;
+        return NULL;
     }
     return channel;
 }
 
 std::string SshHandler::getArch()
 {
-    if (!sshConnect()) return "";
-
-    ssh_channel channel = ssh_channel_new(sshSession.get());
-    if (!channel || ssh_channel_open_session(channel) != SSH_OK) return "";
-
+    ssh_channel channel = initChannel();
+    if (channel == NULL) {
+        std::cerr << "ssh: error: failed to init new channel\n";
+        return "";
+    }
+    if (ssh_channel_open_session(channel) != SSH_OK) {
+        std::cerr << "ssh: error: failed to open a new channel session\n";
+        return "";
+    }
+    
     std::string arch = "";
     if (ssh_channel_request_exec(channel, "uname -m") == SSH_OK) {
         char buffer[256];
@@ -88,41 +101,57 @@ std::string SshHandler::getArch()
     return arch;
 }
 
-int SshHandler::exec_remote_command(const std::string& command)
+bool SshHandler::exec_remote_command(const std::string& command)
 {
-    ssh_channel channel;
-    int rc;
-    char buffer[256];
-    int nbytes;
+    ssh_channel channel = initChannel();
+    if (!channel) {
+        return false;
+    }
     
-    channel = initChannel();
-    
-    rc = ssh_channel_request_exec(channel, command.c_str());
+    int rc = ssh_channel_request_exec(channel, command.c_str());
     if (rc != SSH_OK) {
         ssh_channel_close(channel);
         ssh_channel_free(channel);
-        return rc;
+        return false;
     }
     
-    nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
-    while (nbytes > 0) {
-        if (write(1, buffer, nbytes) != (unsigned int) nbytes) {
-            ssh_channel_close(channel);
-            ssh_channel_free(channel);
-            return SSH_ERROR;
+    char buffer[1024];
+    int nbytes;
+    
+    while (!ssh_channel_is_eof(channel)) {
+        
+        nbytes = ssh_channel_read_nonblocking(channel, buffer, sizeof(buffer), 0);
+        if (nbytes > 0) {
+            if (write(1, buffer, nbytes) != nbytes) {
+            }
+        } else if (nbytes < 0) {
+            break;
         }
-        nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
+        
+        nbytes = ssh_channel_read_nonblocking(channel, buffer, sizeof(buffer), 1);
+        if (nbytes > 0) {
+            if (write(2, buffer, nbytes) != nbytes) {
+            }
+        } else if (nbytes < 0) {
+            break;
+        }
+        
+        usleep(10000);
     }
     
-    if (nbytes < 0) {
-        ssh_channel_close(channel);
-        ssh_channel_free(channel);
-        return SSH_ERROR;
+    while ((nbytes = ssh_channel_read_nonblocking(channel, buffer, sizeof(buffer), 0)) > 0) {
+        if (write(1, buffer, nbytes) != nbytes) {}
     }
-  
-    CLOSE_CHANNEL(channel);
-  
-    return SSH_OK;
+    while ((nbytes = ssh_channel_read_nonblocking(channel, buffer, sizeof(buffer), 1)) > 0) {
+        if (write(2, buffer, nbytes) != nbytes) {}
+    }
+    
+    int exit_status = ssh_channel_get_exit_status(channel);
+    
+    ssh_channel_close(channel);
+    ssh_channel_free(channel);
+    
+    return (exit_status == 0);
 }
 
 bool SshHandler::verify_knownhost()
@@ -191,7 +220,7 @@ bool SshHandler::verify_knownhost()
     return true;
 }
 
-bool SshHandler::connect_with_password(const std::string& password) 
+bool SshHandler::try_password(const std::string& password) 
 {
     int rc = ssh_userauth_password(sshSession.get(), nullptr, password.c_str());
     if (rc == SSH_AUTH_SUCCESS) return true;
@@ -217,56 +246,57 @@ bool SshHandler::connect_with_password(const std::string& password)
     return (rc == SSH_AUTH_SUCCESS);
 }
 
-int SshHandler::authenticate_kbdint()
+bool SshHandler::authenticate_kbdint()
 {
-  int rc;
- 
-  rc = ssh_userauth_kbdint(sshSession.get(), NULL, NULL);
-  while (rc == SSH_AUTH_INFO)
-  {
-    const char *name = NULL, *instruction = NULL;
-    int nprompts, iprompt;
- 
-    name = ssh_userauth_kbdint_getname(sshSession.get());
-    instruction = ssh_userauth_kbdint_getinstruction(sshSession.get());
-    nprompts = ssh_userauth_kbdint_getnprompts(sshSession.get());
- 
-    if (std::strlen(name) > 0)
-      std::cout << name << "\n";
-    if (std::strlen(instruction) > 0)
-      std::cout << instruction << "\n";
-    for (iprompt = 0; iprompt < nprompts; iprompt++)
+    int rc = ssh_userauth_kbdint(sshSession.get(), nullptr, nullptr);
+    
+    while (rc == SSH_AUTH_INFO) 
     {
-      const char *prompt = NULL;
-      char echo;
- 
-      prompt = ssh_userauth_kbdint_getprompt(sshSession.get(), iprompt, &echo);
-      if (echo)
-      {
-        char buffer[128], *ptr;
- 
-        std::cout << prompt << "\n";
-        if (fgets(buffer, sizeof(buffer), stdin) == NULL)
-          return SSH_AUTH_ERROR;
-        buffer[sizeof(buffer) - 1] = '\0';
-        if ((ptr = std::strchr(buffer, '\n')) != NULL)
-          *ptr = '\0';
-        if (ssh_userauth_kbdint_setanswer(sshSession.get(), iprompt, buffer) < 0)
-          return SSH_AUTH_ERROR;
-        memset(buffer, 0, strlen(buffer));
-      }
-      else
-      {
-        char *ptr = NULL;
- 
-        ptr = getpass(prompt);
-        if (ssh_userauth_kbdint_setanswer(sshSession.get(), iprompt, ptr) < 0)
-          return SSH_AUTH_ERROR;
-      }
+        const char *name = ssh_userauth_kbdint_getname(sshSession.get());
+        const char *instruction = ssh_userauth_kbdint_getinstruction(sshSession.get());
+        int nprompts = ssh_userauth_kbdint_getnprompts(sshSession.get());
+        
+        if (name && std::strlen(name) > 0) {
+            std::cout << name << "\n";
+        }
+        if (instruction && std::strlen(instruction) > 0) {
+            std::cout << instruction << "\n";
+        }
+        
+        for (int iprompt = 0; iprompt < nprompts; iprompt++) 
+        {
+            char echo;
+            const char *prompt = ssh_userauth_kbdint_getprompt(sshSession.get(), iprompt, &echo);
+            
+            if (!prompt) continue;
+            std::cout << prompt << std::flush;
+            
+            std::string answer;
+            
+            if (echo) {
+                std::getline(std::cin, answer);
+            } else {
+                struct termios oldt;
+                tcgetattr(STDIN_FILENO, &oldt);
+                struct termios newt = oldt;
+                newt.c_lflag &= ~ECHO;
+                tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+                
+                std::getline(std::cin, answer);
+                
+                tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+                std::cout << "\n";
+            }
+            
+            if (ssh_userauth_kbdint_setanswer(sshSession.get(), iprompt, answer.c_str()) < 0) {
+                return false;
+            }
+        }
+        
+        rc = ssh_userauth_kbdint(sshSession.get(), nullptr, nullptr);
     }
-    rc = ssh_userauth_kbdint(sshSession.get(), NULL, NULL);
-  }
-  return rc;
+    
+    return (rc == SSH_AUTH_SUCCESS);
 }
 
 void SshHandler::upload(const std::string path)
@@ -414,4 +444,70 @@ SshHandler::SftpSessionPtr SshHandler::initSftp()
     if (sftp_init(sftp.get()) != SSH_OK) return nullptr;
 
     return sftp;
+}
+
+bool SshHandler::inject_local_public_key(const std::string& key_path) {
+    std::string pubkey_content;
+    std::string source_path = key_path;
+
+    if (source_path.empty()) {
+        const char* home_dir = std::getenv("HOME");
+        if (!home_dir) return false;
+        source_path = std::string(home_dir) + "/.ssh/id_rsa.pub";
+    }
+
+    std::ifstream pubkey_file(source_path);
+    if (!pubkey_file.is_open()) {
+        std::cerr << "Local Error: Could not open public key file at: " << source_path << "\n";
+        return false;
+    }
+    std::getline(pubkey_file, pubkey_content);
+
+    if (pubkey_content.empty()) {
+        std::cerr << "Local Error: Public key file is empty.\n";
+        return false;
+    }
+
+    std::string remote_cmd = 
+        "mkdir -p ~/.ssh && chmod 700 ~/.ssh && "
+        "echo '" + pubkey_content + "' >> ~/.ssh/authorized_keys && "
+        "chmod 600 ~/.ssh/authorized_keys";
+
+    std::cout << "Authorizing access tokens on remote node...\n";
+    int rc = exec_remote_command(remote_cmd);
+    
+    return (rc == SSH_OK);
+}
+
+bool SshHandler::attemptConnection() {
+    if (!sshConnect()) return false;
+
+    int rc = ssh_userauth_none(sshSession.get(), nullptr);
+    if (rc == SSH_AUTH_SUCCESS) return true;
+
+    int methods = ssh_userauth_list(sshSession.get(), nullptr);
+
+    if (methods & SSH_AUTH_METHOD_PUBLICKEY) {
+        rc = ssh_userauth_publickey_auto(sshSession.get(), nullptr, nullptr);
+        if (rc == SSH_AUTH_SUCCESS) return true;
+    }
+
+    if (methods & SSH_AUTH_METHOD_INTERACTIVE) {
+        if (authenticate_kbdint()) return true;
+    }
+
+    if (methods & SSH_AUTH_METHOD_PASSWORD) {
+        // connect with password?
+        std::cout << "Key authentication unavailable. Manual authorization required.\n";
+        return false; 
+    }
+
+    return false;
+}
+
+bool SshHandler::connect() {
+    if (!sshConnect()) return false;
+
+    int rc = ssh_userauth_publickey_auto(sshSession.get(), nullptr, nullptr);
+    return (rc == SSH_AUTH_SUCCESS);
 }

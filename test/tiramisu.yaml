@@ -1,12 +1,9 @@
-# Tiramisu Project Configuration
 project:
   name: "test"
 
 environments:
-  # Use 'tiramisu host add' to append target server nodes here
-  local:
-    host: # "127.0.0.1"
-    user: # "root"
-    identity: # ~/.ssh/id_rsa
-    port: # 22
-  
+  test2:
+    host: 127.0.0.1
+    user: root
+    port: 2221
+    key: "/home/mcipolla/.ssh/id_rsa.pub"
