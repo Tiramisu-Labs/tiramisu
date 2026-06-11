@@ -31,24 +31,14 @@ void Host::add(const Command&& command) {
         std::cerr << "tiramisu: error: an ip is required.\n" << getHelp() << std::endl;
         return;
     }
-    auto dir = command.options.find("--dir");
-    std::filesystem::path path = dir != command.options.end()
-                                ? std::filesystem::path(dir->second)
-                                : std::filesystem::current_path();
 
-    auto project_opt = Project::loadFromContext(path);
-    if (!project_opt) {
-        std::cerr << "Could not find tiramisu.yaml. Try passing the specific path using --dir option\n";
-        return;
-    }
-
-    if (project_opt->getEnv(env_name)) {
+    auto project = Project::getProject(command);
+    
+    if (project->getEnv(env_name)) {
         std::cerr << "error: env_name already present. Please try using a different name\n";
         return;
     }
-
-    Project project = std::move(*project_opt);
-
+    
     std::filesystem::path home_env = std::getenv("HOME");
     
     const std::string ip = command.options.find("--ip")->second;
@@ -73,10 +63,10 @@ void Host::add(const Command&& command) {
 
     if (authenticated) {
         if (handler.inject_local_public_key(key)) {
-            Environment new_node{ ip, user, std::atoi(port.c_str()), key };                
-            project.addOrUpdateEnv(env_name, new_node);
+            Environment new_node{ ip, user, std::atoi(port.c_str()), key , handler.getArch()};                
+            project->addOrUpdateEnv(env_name, new_node);
             
-            if (project.save()) {
+            if (project->save()) {
                 std::cout << "Node successfully saved to configuration profile!\n";
             }
         }
@@ -87,16 +77,8 @@ void Host::list(const Command&& command) {
     #if DEBUG
         std::cout << "host list\n";
     #endif
-    auto dir = command.options.find("--dir");
-    std::filesystem::path path = dir != command.options.end()
-                                ? std::filesystem::path(dir->second)
-                                : std::filesystem::current_path();
-    if (auto project_opt = Project::loadFromContext(path)) {        
-        Project project = std::move(*project_opt);
-        project.print();
-    } else {
-        std::cerr << "Could not initialize project configuration.\n";
-    }
+    auto project = Project::getProject(command);
+    project->print();
 }
 
 std::string Host::getArch(const std::string& dir, const std::string& env) const {
@@ -153,39 +135,78 @@ void Host::setup(const Command &&command)
     }
 
     const auto env_name = command.arguments[1];
-
-    auto dir = command.options.find("--dir");
-    std::filesystem::path path = dir != command.options.end()
-                            ? std::filesystem::path(dir->second)
-                            : std::filesystem::current_path();
+    auto project = Project::getProject(command);
 
     // auto skip_nginx = std::find(command.flags.begin(), command.flags.end(), "--skip-nginx");
     // bool skip = skip_nginx != command.flags.end();
     // if (skip) {
 
     // }
-
-    if (auto project_opt = Project::loadFromContext(path)) {
-        Project project = std::move(*project_opt);
-        if (env_name != "") {
-            if (auto getEnv = project.getEnv(env_name)) {
-                SshHandler handler = SshHandler(getEnv->host, getEnv->user, getEnv->port, getEnv->key);
-                handler.exec_remote_command(std::string("bash -c '" + std::string(SETUP_SCRIPT) + "'"));
-            } else {
-                throw std::runtime_error("error: environment name not found into tiramisu.yaml");    
-            }
+   
+    if (env_name != "") {
+        if (auto getEnv = project->getEnv(env_name)) {
+            SshHandler handler = SshHandler(getEnv->host, getEnv->user, getEnv->port, getEnv->key);
+            handler.exec_remote_command(std::string("bash -c '" + std::string(SETUP_SCRIPT) + "'"));
         } else {
-            throw std::runtime_error("error: environment name missing. Use --env <env_name>");
+            throw std::runtime_error("error: environment name not found into tiramisu.yaml");    
         }
     } else {
-        std::cerr << "Could not initialize project configuration.\n";
+        throw std::runtime_error("error: environment name missing. Use --env <env_name>");
     }
-
 }
 
-void Host::reset(const Command &&command)
+void Host::reset(const Command&& command)
 {
-    (void)command;
+    if (command.arguments.size() < 2) {
+        throw std::runtime_error("error: an env name is required.\n\n" + std::string(getHelp()));
+    }
+
+    const auto env_name = command.arguments[1];
+    if (env_name.empty()) {
+        throw std::runtime_error("error: environment name missing. Use --env <env_name>");
+    }
+
+    auto project = Project::getProject(command);
+    auto getEnv = project->getEnv(env_name);
+
+    if (!getEnv) {
+        throw std::runtime_error("error: environment name '" + env_name + "' not found in tiramisu.yaml");    
+    }
+
+    bool confirm = false;
+    if (std::find(command.arguments.begin(), command.arguments.end(), "-y") != command.arguments.end() ||
+        std::find(command.arguments.begin(), command.arguments.end(), "--yes") != command.arguments.end()) {
+        confirm = true;
+    }
+
+    if (!confirm) {
+        std::cout << "\nWARNING: You are about to wipe out all functions for the domain '" 
+                  << project->getDomain() << "' on environment '" << env_name << "'.\n";
+        std::cout << "This action cannot be undone. Are you sure you want to continue? [y/N]: ";
+        std::cout.flush();
+
+        std::string response;
+        std::getline(std::cin, response);
+
+        std::transform(response.begin(), response.end(), response.begin(), ::tolower);
+
+        if (response != "y" && response != "yes") {
+            std::cout << "Reset operation aborted by user.\n";
+            return;
+        }
+    }
+
+    SshHandler handler(getEnv->host, getEnv->user, getEnv->port, getEnv->key);
+    const std::string domain = project->getDomain();
+
+    std::string remote_cmd = "bash -c 'rm -rf /var/lib/tiramisu/projects/" + domain + "'";
+    
+    std::cout << "Resetting application state for " << domain << "... ";
+    std::cout.flush();
+    
+    handler.exec_remote_command(remote_cmd);
+    
+    std::cout << "Done!\n";
 }
 
 void Host::purge(const Command &&command)

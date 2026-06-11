@@ -1,12 +1,14 @@
 #include <Project.hpp>
 #include <Yaml.hpp>
+#include <commands/ICommand.hpp>
 
 Project::Project(
-    const std::string& n,
-    const std::unordered_map<std::string, Environment> environments,
-    std::filesystem::path& path
+    std::string n,
+    std::string d,
+    std::unordered_map<std::string, Environment> environments,
+    std::filesystem::path path
 )
-    : name(n), envs(std::move(environments)), configPath(path) {};
+    : name(n), domain(d), envs(std::move(environments)), configPath(path) {};
 
 
 std::optional<Environment> Project::getEnv(const std::string& env_name) const {
@@ -17,7 +19,7 @@ std::optional<Environment> Project::getEnv(const std::string& env_name) const {
     return std::nullopt;
 }
 
-std::optional<Project> Project::loadFromContext(std::filesystem::path start_dir) {
+std::unique_ptr<Project> Project::loadFromContext(std::filesystem::path start_dir) {
     std::filesystem::path config_path;
     
     while (true) {
@@ -28,7 +30,7 @@ std::optional<Project> Project::loadFromContext(std::filesystem::path start_dir)
         }
         if (start_dir == start_dir.parent_path()) {
             std::cerr << "Error: tiramisu.yaml not found.\n";
-            return std::nullopt;
+            return nullptr;
         }
         start_dir = start_dir.parent_path();
     }
@@ -42,6 +44,11 @@ std::optional<Project> Project::loadFromContext(std::filesystem::path start_dir)
             project_name = root_yaml["project"]["name"].as<std::string>();
         }
 
+        std::string domain = "localhost";
+        if (root_yaml["project"]["domain"].isString()) {
+            domain = root_yaml["project"]["domain"].as<std::string>();
+        }
+
         std::unordered_map<std::string, Environment> envs;
 
         for (const auto& [env_key, env_node] : root_yaml["environments"]) {
@@ -51,6 +58,7 @@ std::optional<Project> Project::loadFromContext(std::filesystem::path start_dir)
             if (env_node["host"].isString())      env.host = env_node["host"].as<std::string>();
             if (env_node["user"].isString())      env.user = env_node["user"].as<std::string>();
             if (env_node["key"].isString())       env.key  = env_node["key"].as<std::string>();
+            if (env_node["arch"].isString())      env.arch  = env_node["arch"].as<std::string>();
             
             if (env_node["port"].isNumber()) {
                 env.port = env_node["port"].as<int>(); 
@@ -59,14 +67,13 @@ std::optional<Project> Project::loadFromContext(std::filesystem::path start_dir)
             envs[env_key] = std::move(env);
         }
 
-        return Project(project_name, std::move(envs), config_path);
+        return std::unique_ptr<Project>(new Project(project_name, domain, std::move(envs), config_path));
 
     } catch (const std::exception& e) {
         std::cerr << "Parser error: " << e.what() << std::endl;
-        return std::nullopt;
+        return nullptr;
     }
 }
-
 void Project::addOrUpdateEnv(const std::string& env_name, const Environment& env) {
     envs[env_name] = env;
 }
@@ -80,7 +87,8 @@ void Project::print() const
         std::cout << "    host: " << value.host << "\n"
                   << "    user: " << value.user << "\n"
                   << "    key: " << value.key << "\n"
-                  << "    port: " << value.port << "\n";
+                  << "    port: " << value.port << "\n"
+                  << "    arch: " << value.arch << "\n";
     }
 }
 
@@ -102,6 +110,21 @@ bool Project::save() const {
         if (!env.key.empty()) {
             file << "    key: " << env.key << "\n";
         }
+        file << "    arch: " << env.arch << "\n";
     }    
     return true;
+}
+
+std::unique_ptr<Project> Project::getProject(const Command& command)
+{
+    auto dir = command.options.find("--dir");
+    std::filesystem::path path = dir != command.options.end()
+                            ? std::filesystem::path(dir->second)
+                            : std::filesystem::current_path();
+
+    auto project = Project::loadFromContext(path);
+    if (!project) {
+        throw std::runtime_error("error: tiramisu.yaml not found. Try using --dir <path> and specify a path where looking for it\n");
+    }
+    return project;
 }

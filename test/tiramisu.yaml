@@ -1,9 +1,10 @@
 project:
   name: "test"
-
+  domain: "localhost"
 environments:
   test2:
     host: 127.0.0.1
     user: root
     port: 2221
     key: "/home/mcipolla/.ssh/id_rsa.pub"
+    arch: x86_64

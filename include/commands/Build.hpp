@@ -23,23 +23,24 @@ enum class Extensions
 
 class Build : public ICommand {
     private:
-
+    bool compilerExists(const std::string& compiler_name);
+    bool verifyHandlerSymbol(const std::string& so_path, const std::string& target_arch);
+    
     public:
     Build() = default;
     ~Build() override {};
     std::string getName() const override;
     std::string_view getHelp() const override;
     void execute(const Command& command) override;
-    bool checkExtensionCompiler(const std::string ext);
 
     const std::unordered_map<std::string, Extensions> extensionsMap_ {
-        {"c", Extensions::C},
-        {"cpp", Extensions::CPP},
-        {"rs", Extensions::RS},
-        {"js", Extensions::JS},
-        {"ts", Extensions::TS},
-        {"go", Extensions::GO},
-        {"py", Extensions::PY},
-        {"wasm", Extensions::WASM},
+        {".c", Extensions::C},
+        {".cpp", Extensions::CPP},
+        {".rs", Extensions::RS},
+        {".js", Extensions::JS},
+        {".ts", Extensions::TS},
+        {".go", Extensions::GO},
+        {".py", Extensions::PY},
+        {".wasm", Extensions::WASM},
     };
 };

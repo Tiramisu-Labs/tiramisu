@@ -110,7 +110,6 @@ $SUDO rm -rf "$BUILD_DIR"
 echo "Caffeine successfully provisioned and running!"
 )SCRIPT";
 
-
 class Host : public ICommand {
     private:
     std::string getArch(const std::string& dir = "", const std::string& env = "") const;
