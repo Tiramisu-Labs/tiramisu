@@ -4,7 +4,6 @@
 #include <Utils.hpp>
 #include <commands/Host.hpp>
 #include <commands/Init.hpp>
-#include <commands/Setup.hpp>
 #include <commands/Build.hpp>
 #include <commands/Install.hpp>
 #include <commands/Create.hpp>
@@ -33,7 +32,6 @@ static std::map<std::string, Commands> commandsMap = {
     {"build", Commands::BUILD},
     {"deploy", Commands::DEPLOY},
     {"install", Commands::INSTALL},
-    {"setup", Commands::SETUP},
     {"help", Commands::HELP},
     {"local", Commands::LOCAL}
 };
@@ -177,7 +175,6 @@ void CLI::registerCommandFactories() {
     m_commandFactories[static_cast<size_t>(Commands::BUILD)] = [&]() { return std::make_unique<Build>(); };
     m_commandFactories[static_cast<size_t>(Commands::CREATE)] = [&]() { return std::make_unique<Create>(); };
     m_commandFactories[static_cast<size_t>(Commands::INSTALL)] = [&]() { return std::make_unique<Install>(); };
-    m_commandFactories[static_cast<size_t>(Commands::SETUP)] = [&]() { return std::make_unique<Setup>(); };
     m_commandFactories[static_cast<size_t>(Commands::LOCAL)] = [&]() { return std::make_unique<Local>(); };
     // m_commandFactories[static_cast<size_t>(Commands::WEBSERVER)] = [&]() { return std::make_unique<Webserver>(); };
 }

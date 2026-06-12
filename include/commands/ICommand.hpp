@@ -16,9 +16,7 @@ enum class Commands
     DEPLOY,
     WEBSERVER,
     INSTALL,
-    SETUP,
     HELP,
-    UNISTALL,
     LOCAL,
     SIZE
 };

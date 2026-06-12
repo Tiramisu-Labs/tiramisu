@@ -31,6 +31,7 @@ class Project {
     Project() = delete;
     
     std::optional<Environment> getEnv(const std::string& env_name) const;
+    inline std::unordered_map<std::string, Environment> getEnvs() const { return envs; }
     static std::unique_ptr<Project> loadFromContext(std::filesystem::path start_dir);
     
     void addOrUpdateEnv(const std::string& env_name, const Environment& env);

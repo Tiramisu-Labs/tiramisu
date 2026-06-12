@@ -14,6 +14,11 @@ std::string_view Local::getHelp() const { return LOCAL_HELP; }
 
 void Local::execute(const Command& command)
 {
+    std::cout << "execute local\n";
+    if (command.help) {
+        std::cout << getHelp();
+        return;
+    }
     auto subcommand = command.arguments.front();
     try {
         commandsMap[subcommand](std::move(command));

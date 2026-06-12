@@ -47,7 +47,7 @@ ssh_channel SshHandler::initChannel() {
     ssh_channel channel;
     int rc;
 
-    if (!connect()) {
+    if (!sshConnect()) {
         const char *err = ssh_get_error(sshSession.get());
         std::cerr << err;
         return NULL;
@@ -223,9 +223,14 @@ bool SshHandler::verify_knownhost()
 bool SshHandler::try_password(const std::string& password) 
 {
     int rc = ssh_userauth_password(sshSession.get(), nullptr, password.c_str());
-    if (rc == SSH_AUTH_SUCCESS) return true;
+    
+    if (rc == SSH_AUTH_SUCCESS) {
+        std::cout << "[SSH] Authentication successful via standard password exchange.\n";
+        return true;
+    }
 
     if (rc == SSH_AUTH_DENIED || rc == SSH_AUTH_PARTIAL) {
+        std::cout << "[SSH] Standard password rejected. Retrying via keyboard-interactive challenge...\n";
         rc = ssh_userauth_kbdint(sshSession.get(), nullptr, nullptr);
         
         while (rc == SSH_AUTH_INFO) {
@@ -233,7 +238,7 @@ bool SshHandler::try_password(const std::string& password)
             
             for (int i = 0; i < nprompts; ++i) {
                 const char* prompt = ssh_userauth_kbdint_getprompt(sshSession.get(), i, nullptr);
-                std::string prompt_str(prompt);
+                std::string prompt_str(prompt ? prompt : "");
                 
                 if (prompt_str.find("password") != std::string::npos || 
                     prompt_str.find("Password") != std::string::npos) {
@@ -242,8 +247,31 @@ bool SshHandler::try_password(const std::string& password)
             }
             rc = ssh_userauth_kbdint(sshSession.get(), nullptr, nullptr);
         }
+        
+        if (rc == SSH_AUTH_SUCCESS) {
+            std::cout << "[SSH] Authentication successful via keyboard-interactive mapping.\n";
+            return true;
+        }
     }
-    return (rc == SSH_AUTH_SUCCESS);
+
+    std::cerr << "\n--- SSH AUTHENTICATION FAILURE ---\n";
+    if (rc == SSH_AUTH_DENIED) {
+        std::cerr << "[ERROR] Access Denied: The password or username provided is incorrect.\n";
+    } 
+    else if (rc == SSH_AUTH_PARTIAL) {
+        std::cerr << "[WARN] Partial Success: Password accepted, but the target server requires "
+                  << "an additional authentication factor (MFA/2FA or Public Key).\n";
+    } 
+    else if (rc == SSH_AUTH_ERROR) {
+        std::cerr << "[ERROR] Underlying SSH Protocol Fault: " 
+                  << ssh_get_error(sshSession.get()) << "\n";
+    } 
+    else {
+        std::cerr << "[ERROR] Handshake terminated with unhandled status token: " << rc << "\n";
+    }
+    std::cerr << "----------------------------------\n\n";
+
+    return false;
 }
 
 bool SshHandler::authenticate_kbdint()
@@ -458,25 +486,42 @@ bool SshHandler::inject_local_public_key(const std::string& key_path) {
 
     std::ifstream pubkey_file(source_path);
     if (!pubkey_file.is_open()) {
-        std::cerr << "Local Error: Could not open public key file at: " << source_path << "\n";
+        std::cerr << "[SSH] Local Error: Could not open public key file at: " << source_path << "\n";
         return false;
     }
+    
     std::getline(pubkey_file, pubkey_content);
 
+    while (!pubkey_content.empty() && 
+           (pubkey_content.back() == '\r' || pubkey_content.back() == '\n' || pubkey_content.back() == ' ')) {
+        pubkey_content.pop_back();
+    }
+
     if (pubkey_content.empty()) {
-        std::cerr << "Local Error: Public key file is empty.\n";
+        std::cerr << "[SSH] Local Error: Public key string is empty or invalid.\n";
         return false;
     }
 
     std::string remote_cmd = 
-        "mkdir -p ~/.ssh && chmod 700 ~/.ssh && "
-        "echo '" + pubkey_content + "' >> ~/.ssh/authorized_keys && "
-        "chmod 600 ~/.ssh/authorized_keys";
+        "mkdir -p ~/.ssh && "
+        "chmod 700 ~/.ssh && "
+        "touch ~/.ssh/authorized_keys && "
+        "chmod 600 ~/.ssh/authorized_keys && "
+        "if ! grep -qF '" + pubkey_content + "' ~/.ssh/authorized_keys; then "
+        "  echo '" + pubkey_content + "' >> ~/.ssh/authorized_keys; "
+        "fi";
 
-    std::cout << "Authorizing access tokens on remote node...\n";
-    int rc = exec_remote_command(remote_cmd);
+    std::cout << "[SSH] Syncing authorized access tokens on remote node...\n";
     
-    return (rc == SSH_OK);
+    bool success = exec_remote_command(remote_cmd);
+    
+    if (success) {
+        std::cout << "[SSH] Public key successfully authorized and verified.\n";
+    } else {
+        std::cerr << "[SSH] Error: Failed to execute remote key injection script.\n";
+    }
+
+    return success;
 }
 
 bool SshHandler::attemptConnection() {

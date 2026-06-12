@@ -7,6 +7,7 @@
 #include <Project.hpp>
 #include <optional>
 #include <fstream>
+#include <set>
 
 std::string Build::getName() const { return "build"; }
 
@@ -31,110 +32,130 @@ bool Build::verifyHandlerSymbol(const std::string& so_path, const std::string& t
     return (res == 0);
 }
 
-
-// this really needs to be refractor :(
-void Build::execute(const Command& command)
+std::string Build::getCompiler(const std::string& arch, const std::string& ext)
 {
-    const auto env_it = command.options.find("--env");
+    std::string canonical_arch = arch;
+    if (arch == "arm64") canonical_arch = "aarch64";
 
-    std::string env_name = env_it != command.options.end() ? env_it->second : "";
-    auto project = Project::getProject(command);
-    auto env = project ? project->getEnv(env_name) : std::nullopt;
+    static const std::unordered_map<std::string, std::unordered_map<std::string, std::string>> compiler_registry = {
+        {"aarch64", {
+            {".c",       "aarch64-linux-gnu-gcc"},
+            {".cpp",     "aarch64-linux-gnu-g++"},
+            {".cc",      "aarch64-linux-gnu-g++"},
+            {".rs",      "rustc --target aarch64-unknown-linux-gnu"},
+            {".zig",     "zig build-lib -target aarch64-linux"},
+            {".go",      "GOARCH=arm64 go build -buildmode=c-shared"},
+            {".py",      "aarch64-linux-gnu-gcc"}
+        }},
+        {"x86_64", {
+            {".c",       "x86_64-linux-gnu-gcc"},
+            {".cpp",     "x86_64-linux-gnu-g++"},
+            {".cc",      "x86_64-linux-gnu-g++"},
+            {".rs",      "rustc --target x86_64-unknown-linux-gnu"},
+            {".zig",     "zig build-lib -target x86_64-linux"},
+            {".go",      "GOARCH=amd64 go build -buildmode=c-shared"},
+            {".py",      "x86_64-linux-gnu-gcc"}
+        }}
+    };
 
-    std::cout << "[BUILD] Executing compilation pipeline...\n";
-    std::string input_arg = "";
-    try {
-        input_arg = command.arguments.at(0);
-    } catch (const std::out_of_range& e) {
-        std::cerr << "[ERROR] Project directory or file path parameter is missing.\n";
-        getHelp();
-        return;
+    auto arch_it = compiler_registry.find(canonical_arch);
+    if (arch_it != compiler_registry.end()) {
+        auto ext_it = arch_it->second.find(ext);
+        if (ext_it != arch_it->second.end()) {
+            return ext_it->second;
+        }
     }
 
-    const std::filesystem::path input_path(input_arg);
-    std::error_code ec;
-    
-    std::filesystem::path project_root = project->getConfigPath();
+    return "";
+}
+
+std::vector<std::filesystem::path>  Build::collectFiles(const std::filesystem::path& path, const std::string& arch)
+{
     std::vector<std::filesystem::path> files_to_compile;
+    std::set<std::filesystem::path> processed_makefiles;
+    std::error_code ec;
 
-    if (std::filesystem::is_directory(input_path, ec)) {
-        std::cout << "dir file\n";
-        
-        if (std::filesystem::exists(project_root / "Makefile") || std::filesystem::exists(project_root / "makefile")) {
-            std::cout << "[BUILD] Custom Makefile discovered. Bypassing fallback routines.\n";
-            std::string make_cmd = "make -C " + project_root.string() + " CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++";
-            if (std::system(make_cmd.c_str()) != 0) {
-                std::cerr << "[ERROR] Makefile pipeline execution terminated with faults.\n";
+    if (std::filesystem::is_directory(path, ec)) {
+        for (auto it = std::filesystem::recursive_directory_iterator(path); it != std::filesystem::end(it); ++it) {
+            std::filesystem::path file_dir = it->path().parent_path();
+
+            bool has_makefile = std::filesystem::exists(file_dir / "Makefile") || 
+                                std::filesystem::exists(file_dir / "makefile");
+
+            if (has_makefile) {
+                if (processed_makefiles.insert(file_dir).second) {
+                    std::cout << "[BUILD] Custom Makefile discovered in " << file_dir.string() << ". Executing...\n";
+                    
+                    std::string make_cmd = "make -C " + file_dir.string();
+
+                    static const std::vector<std::pair<std::string, std::string>> toolchain_matrix = {
+                        {".c",    "CC"},
+                        {".cpp",  "CXX"},
+                        {".cc",   "CXX"},
+                        {".rs",   "RUSTC"},
+                        {".zig",  "ZIG"},
+                        {".go",   "GO"}
+                    };
+
+                    for (const auto& [ext, make_var] : toolchain_matrix) {
+                        std::string compiler_cmd = getCompiler(arch, ext);
+                        
+                        if (!compiler_cmd.empty()) {
+                            make_cmd += " " + make_var + "=\"" + compiler_cmd + "\"";
+                        }
+                    }
+
+                    if (std::system(make_cmd.c_str()) != 0) {
+                        std::cerr << "[ERROR] Makefile execution terminated with faults in: " << file_dir.string() << "\n";
+                    }
+                }
+                continue; 
             }
-            return;
-        }
 
-        for (const auto& entry : std::filesystem::recursive_directory_iterator(project_root)) {
-            if (entry.is_regular_file()) {
-                files_to_compile.push_back(entry.path());
+            if (it->is_regular_file()) {
+                files_to_compile.push_back(it->path());
             }
         }
-    } else if (std::filesystem::is_regular_file(input_path, ec)) {
-        std::cout << "regular file\n";
-        files_to_compile.push_back(input_path);
+    } else if (std::filesystem::is_regular_file(path, ec)) {
+        files_to_compile.push_back(path);
+    } 
+    return files_to_compile;
+}
 
-        std::filesystem::path current = input_path.parent_path();
-        while (!current.empty() && current != current.root_path()) {
-            if (std::filesystem::exists(current / "tiramisu.yaml") || std::filesystem::exists(current / "tiramisu.yml")) {
-                project_root = current;
-                break;
-            }
-            current = current.parent_path();
-        }
+void Build::compile(const std::vector<std::filesystem::path>&& files, const std::string& arch)
+{
+    std::error_code ec;
 
-        if (project_root.empty()) {
-            std::cout << "[WARN] tiramisu.yaml not found in parent path hierarchy. Falling back to file directory context.\n";
-            project_root = input_path.parent_path();
-        }
-    } else {
-        std::cerr << "[ERROR] Provided path is neither a valid directory nor a regular file: " << input_arg << "\n";
-        return;
-    }
-    
-    std::string target_arch = env ? env->arch : "native";
-
-    std::string c_compiler = "gcc";
-    std::string cpp_compiler = "c++";
-    std::string python_includes = "-I/usr/include/python3.10"; 
-    std::string python_libs = "-lpython3.10";
-
-    if (target_arch == "arm64" || target_arch == "aarch64") {
-        c_compiler = "aarch64-linux-gnu-gcc";
-        cpp_compiler = "aarch64-linux-gnu-g++";
-        python_includes = "-I/usr/include/aarch64-linux-gnu/python3.10";
-        python_libs = "-lpython3.10";
-    } else if (target_arch == "x86_64") {
-        c_compiler = "x86_64-linux-gnu-gcc";
-        cpp_compiler = "x86_64-linux-gnu-g++";
-    }
-
-    for (const std::filesystem::path& file_path : files_to_compile) {
-        std::cout << "file to compile: " << file_path.c_str() << std::endl;
+    for (const std::filesystem::path& file_path : files) {
         std::string ext = file_path.extension().string();
         std::string stem = file_path.stem().string();
-        std::string out_so = (file_path.parent_path() / (stem + ".so")).string();
-        std::cout << "extension: " << ext << std::endl;
+        std::string compiler = getCompiler(arch, ext);
+        std::filesystem::path arch_dir = file_path.parent_path() / arch;
+
+        if (compiler.empty()) continue;
+
+        std::filesystem::create_directories(arch_dir, ec);
+        if (ec) {
+            std::cerr << "[ERROR] Could not create architecture directory: " << arch_dir << " - " << ec.message() << "\n";
+            continue;
+        }
+
+        std::string out_so = (arch_dir / (stem + ".so")).string();
         auto it = extensionsMap_.find(ext);
 
         switch (it != extensionsMap_.end() ? it->second : Extensions::INVALID) {
             
             case Extensions::C: {
-                std::cout << "Extensions::C\n";
-                if (!compilerExists(c_compiler)) {
-                    std::cerr << "[ERROR] Target cross-compiler '" << c_compiler << "' is missing from system utilities paths.\n"
+                if (!compilerExists(compiler)) {
+                    std::cerr << "[ERROR] Target cross-compiler '" << compiler << "' is missing from system utilities paths.\n"
                               << "Please install the missing toolchain package to proceed.\n";
                     return;
                 }
-                std::string cmd = c_compiler + " -Wall -Wextra -Werror -Wno-unused-parameter -shared -fPIC -O3 -o " + out_so + " " + file_path.string();
-                std::cout << "[BUILD] Compiling C [" << target_arch << "] -> " << file_path.filename() << "\n";
+                std::string cmd = compiler + " -Wall -Wextra -Werror -Wno-unused-parameter -shared -fPIC -O3 -o " + out_so + " " + file_path.string();
+                std::cout << "[BUILD] Compiling C [" << arch << "] -> " << file_path.filename() << "\n";
                 
                 if (std::system(cmd.c_str()) == 0) {
-                    if (!verifyHandlerSymbol(out_so, target_arch)) {
+                    if (!verifyHandlerSymbol(out_so, arch)) {
                         std::cerr << "[VALIDATION ERROR] File '" << file_path.filename() << "' compiled successfully but fails to export a dynamic 'handler' function.\n";
                         std::filesystem::remove(out_so); 
                     } else {
@@ -146,16 +167,16 @@ void Build::execute(const Command& command)
 
             case Extensions::CPP: {
                 std::cout << "Extensions::CPP\n";
-                if (!compilerExists(cpp_compiler)) {
-                    std::cerr << "[ERROR] Target cross-compiler '" << cpp_compiler << "' is missing from system utilities paths.\n";
+                if (!compilerExists(compiler)) {
+                    std::cerr << "[ERROR] Target cross-compiler '" << compiler << "' is missing from system utilities paths.\n";
                     return;
                 }
 
-                std::string cmd = cpp_compiler + " -Wall -Wextra -Werror -Wno-unused-parameter -shared -fPIC -O3 -o " + out_so + " " + file_path.string();
-                std::cout << "[BUILD] Compiling C++ [" << target_arch << "] -> " << file_path.filename() << "\n";
+                std::string cmd = compiler + " -Wall -Wextra -Werror -Wno-unused-parameter -shared -fPIC -O3 -o " + out_so + " " + file_path.string();
+                std::cout << "[BUILD] Compiling C++ [" << arch << "] -> " << file_path.filename() << "\n";
                 
                 if (std::system(cmd.c_str()) == 0) {
-                    if (!verifyHandlerSymbol(out_so, target_arch)) {
+                    if (!verifyHandlerSymbol(out_so, arch)) {
                         std::cerr << "[VALIDATION ERROR] File '" << file_path.filename() << "' compiled successfully but is missing required 'extern \"C\" void handler(...)' linkage definitions.\n";
                         std::filesystem::remove(out_so);
                     } else {
@@ -194,15 +215,20 @@ void Build::execute(const Command& command)
                           << "    Py_Finalize();\n"
                           << "}\n";
                 shim_file.close();
-
-                std::string cmd = c_compiler + " -Wall -Wextra -shared -fPIC -O3 " + python_includes + 
+                std::string python_includes = "-I/usr/include/python3.10"; 
+                std::string python_libs = "-lpython3.10";
+                if (arch == "arm64" || arch == "aarch64") {
+                    python_includes = "-I/usr/include/aarch64-linux-gnu/python3.10";
+                    python_libs = "-lpython3.10";
+                }
+                std::string cmd = compiler + " -Wall -Wextra -shared -fPIC -O3 " + python_includes + 
                                   " -o " + out_so + " " + shim_path.string() + " " + python_libs;
                 
                 int s_call = std::system(cmd.c_str());
                 std::filesystem::remove(shim_path);
 
                 if (s_call == 0) {
-                    if (!verifyHandlerSymbol(out_so, target_arch)) {
+                    if (!verifyHandlerSymbol(out_so, arch)) {
                         std::cerr << "[ERROR] Critical Shim Failure: Generated Python container wrapper failed interface validation.\n";
                         std::filesystem::remove(out_so);
                     } else {
@@ -217,5 +243,36 @@ void Build::execute(const Command& command)
             default:
                 break;
         }
+    }
+}
+
+// this really needs to be refractor :(
+void Build::execute(const Command& command)
+{
+    const auto env_it = command.options.find("--env");
+
+    std::string env_name = env_it != command.options.end() ? env_it->second : "";
+    auto project = Project::getProject(command);
+    auto env = project ? project->getEnv(env_name) : std::nullopt;
+
+    std::cout << "[BUILD] Executing compilation pipeline...\n";
+    std::string input_arg = "";
+    try {
+        input_arg = command.arguments.at(0);
+    } catch (const std::out_of_range& e) {
+        input_arg = std::filesystem::current_path();
+    }
+
+    const std::filesystem::path input_path(input_arg);
+
+    if (!env) {
+        // should compile the .so for all envs arch
+        for (auto [key, value] : project->getEnvs()) {
+            std::vector<std::filesystem::path> files = collectFiles(input_path, value.arch);
+            compile(std::move(files), value.arch);
+        }
+    } else {
+        std::vector<std::filesystem::path> files = collectFiles(input_path, env->arch);
+        compile(std::move(files), env->arch);
     }
 }
