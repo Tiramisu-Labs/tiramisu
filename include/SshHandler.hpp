@@ -36,6 +36,7 @@ class SshHandler
 
         SshSessionPtr sshSession;
         bool connected = false;
+        bool authenticated = false;
 
         SftpSessionPtr initSftp();
         ssh_channel initChannel();
@@ -58,8 +59,8 @@ class SshHandler
 
         bool exec_remote_command(const std::string& command);
 
-        void upload(const std::string path);
-        void serviceUpload(const std::string path);
+        bool upload(const std::string path);
+        bool serviceUpload(const std::string path);
 
         bool isConnected() const { return sshSession != nullptr; }
         bool inject_local_public_key(const std::string& custom_pubkey_path);

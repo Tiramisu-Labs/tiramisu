@@ -25,10 +25,11 @@ class Build : public ICommand {
     private:
     bool compilerExists(const std::string& compiler_name);
     bool verifyHandlerSymbol(const std::string& so_path, const std::string& target_arch);
+    // compilation helper functions
     std::string getCompiler(const std::string& arch, const std::string& ext);
     std::vector<std::filesystem::path> collectFiles(const std::filesystem::path& path, const std::string& arch);
     void compile(const std::vector<std::filesystem::path>&& files, const std::string& arch);
-    // compilation helper functions
+    
     public:
     Build() = default;
     ~Build() override {};

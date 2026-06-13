@@ -14,8 +14,7 @@ enum class Commands
     CREATE,
     BUILD,
     DEPLOY,
-    WEBSERVER,
-    INSTALL,
+    SYS,
     HELP,
     LOCAL,
     SIZE
