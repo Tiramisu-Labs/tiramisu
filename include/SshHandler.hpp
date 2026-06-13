@@ -61,6 +61,7 @@ class SshHandler
 
         bool upload(const std::string path);
         bool serviceUpload(const std::string path);
+        bool upload_to_dest(const std::string& local_path, const std::string& remote_path);
 
         bool isConnected() const { return sshSession != nullptr; }
         bool inject_local_public_key(const std::string& custom_pubkey_path);

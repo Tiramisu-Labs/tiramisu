@@ -99,7 +99,8 @@ bool Project::save() const {
         return false;
     }
 
-    file << "project:\n  name: \"" << name << "\"\n\n";
+    file << "project:\n  name: \"" << name << "\"\n";
+    file << "  domain: \"" << domain << "\"\n\n";
     file << "environments:\n";
     
     for (const auto& [env_name, env] : envs) {

@@ -5,8 +5,8 @@ SRCDIR = src
 SRC = Lexer.cpp CLI.cpp main.cpp Parser.cpp SshHandler.cpp \
       commands/Host.cpp commands/Build.cpp \
       commands/Init.cpp commands/Create.cpp \
-	  commands/Sys.cpp	\
-	  Project.cpp commands/Local.cpp
+	  commands/Sys.cpp commands/Caffeine.cpp \
+	  Project.cpp commands/Local.cpp commands/Deploy.cpp \
 
 SRCS = $(addprefix $(SRCDIR)/, $(SRC))
 OBJ = $(SRCS:.cpp=.o)

@@ -1,3 +1,5 @@
+# Tiramisu CLI Command Reference
+
 ## Global Context Flags
 
 These parameters can be supplied to any command. They configure how your local C++ CLI communicates with the single-host server via SSH/SFTP and how it scopes routes.
@@ -35,21 +37,22 @@ Links a new target physical hardware node to your local project space, executes 
 1. **Agnostic Key Probe:** The CLI instantly attempts an implicit, non-interactive SSH connection to the provided `--ip` using the specified private `--key`.
 2. **Pass-through Success:** If the connection succeeds, the remote host is already authorized. The CLI skips to step 5.
 3. **One-Time Password Prompt:** If the connection fails with a public-key rejection error, the terminal halts execution and prompts the user securely:
+
 ```text
 [!] SSH key not authorized on remote host.
 [?] Enter password for user 'root@192.168.1.50': 
 
 ```
 
-
 4. **Automated Security Provisioning:** The CLI uses your SSH class to log in with the password *exactly once*. It reads the local public key matching the user's flag choice (e.g., parsing `~/.ssh/id_rsa.pub` if `--key` was `~/.ssh/id_rsa`) and executes this exact atomic permission string on the remote machine:
+
 ```bash
 mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo 'ssh-rsa AAAAB3N...' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys
 
 ```
 
-
 5. **Final Validation:** The CLI drops the password from memory, closes the session, and re-runs a clean probe execution using *only* the private key. If this second check passes, it appends the block cleanly to `tiramisu.yaml`:
+
 ```yaml
 environments:
   production:
@@ -61,8 +64,6 @@ environments:
 
 ```
 
-
-
 ---
 
 ### `tiramisu host setup [env_name]`
@@ -72,16 +73,15 @@ Completely provisions a verified bare-metal node into a standalone running Tiram
 * **Arguments:** `[env_name]` *(Optional. Scopes target. Defaults to the first block inside `tiramisu.yaml` if omitted).*
 * **Under-the-Hood Execution Flow:**
 The CLI connects via your key-based SSH class and fires off a cross-compiled sequence of setup bash operations:
+
 1. Validates remote system architecture (`uname -m`) to ensure it targets your hardware constraints.
 2. Pushes your native, public-facing Caffeine binary directly into `/usr/local/bin/caffeine`.
 3. Generates the standard production directory infrastructure:
+
 * `/var/lib/tiramisu/functions/` to act as the target destination for your dynamic `.so` handlers.
 * `/var/lib/tiramisu/static/` to act as the target folder for static web assets (SSG).
 
-
 4. Registers and launches the Caffeine edge server runtime inside `systemd`, binding it directly to public web traffic ports (e.g., `80`/`443`) using `SO_REUSEPORT`.
-
-
 
 ---
 
@@ -96,12 +96,12 @@ Wipes out all functional application state from the remote edge hardware without
 
 * **Under-the-Hood Execution Flow:**
 Connects silently using the target environmental key and clears out the runtime filesystems:
+
 ```bash
 rm -rf /var/lib/tiramisu/functions/*
 rm -rf /var/lib/tiramisu/static/*
 
 ```
-
 
 Because Caffeine resolves paths on-the-fly via disk `stat()` operations, your endpoints are scrubbed instantly. Any incoming request to the edge engine will immediately yield a low-overhead, native `404 Not Found` response directly from Caffeine's worker loop.
 
@@ -118,26 +118,52 @@ The ultimate destructive uninstallation sequence. Completely tears down the serv
 
 * **Under-the-Hood Execution Flow:**
 Logs in via SSH and purges all operational configurations:
+
 1. Stops and deletes the Caffeine `systemd` service unit.
 2. Deletes `/usr/local/bin/caffeine`.
 3. Recursively drops the `/var/lib/tiramisu/` application space entirely.
 
+---
 
+## 2. Core Edge Engine Control (`tiramisu caffeine ...`)
+
+These commands give you fine-grained tactical control over Caffeine—your high-performance in-house edge runtime server—allowing you to tune low-level process behaviors, ports, and TLS configurations directly over SSH.
+
+### `tiramisu caffeine config`
+
+Inspects, queries, or updates the engine's internal execution parameters on the remote host.
+
+* **Flags & Options:**
+* `--get`: Fetches and prints the active, parsed configuration currently running on the server.
+* `--workers <int>`: Configures the size of Caffeine's isolated worker process pool (typically mapped to the physical CPU core count of your hardware edge node).
+* `--port <int>`: Overrides the public HTTP port binding.
+* `--tls-cert <path>`: Sets the file path to the public SSL certificate for native HTTPS handling.
+* `--tls-key <path>`: Sets the file path to the private SSL key.
+
+
+
+#### Under-the-Hood Execution Flow:
+
+1. The CLI logs in over SSH and mutates Caffeine's underlying configuration architecture (e.g., writing directly to `/etc/caffeine/caffeine.conf` or modifying environment parameters).
+2. **Smart Hot-Reloading:** Instead of triggering a harsh system daemon restart that drops active connections, the CLI issues a lightweight socket command or a UNIX signal (`SIGHUP`) directly to Caffeine's master process. The master process re-allocates worker allocations on-the-fly with **zero downtime**.
 
 ---
 
-## Summary of Command UX
+### `tiramisu caffeine <start | stop | restart | status>`
 
-| Command | Daily Auth Method | Interactive Prompts | Primary Objective |
-| --- | --- | --- | --- |
-| `tiramisu host add` | Password (Once, to inject key) | Only if key check fails | Registers a node; forces strict `authorized_keys` file privileges. |
-| `tiramisu host setup` | SSH Private Key (Under the hood) | None | Provisions core runtime directories and spins up public Caffeine edge server. |
-| `tiramisu host reset` | SSH Private Key (Under the hood) | Confirmation Prompt | Drops all dynamic `.so` files and static assets for an instant application wipe. |
-| `tiramisu host purge` | SSH Private Key (Under the hood) | Confirmation Prompt | Total uninstallation of Caffeine and application system paths. |
+Manages the core execution state of the Caffeine runtime service on the host machine.
+
+```text
+tiramisu caffeine restart [env_name]
+
+```
+
+* **Under-the-Hood Execution Flow:**
+Maps directly to underlying `systemd` execution routines on the target host. A hard `restart` is safely reserved for deep network socket re-bindings or global port re-allocations.
 
 ---
 
-## 2. Granular Development, Compilation & Deployment
+## 3. Granular Development, Compilation & Deployment
 
 Because Caffeine maps URLs directly to disk paths, these commands handle compiling individual targets and matching that directory layout exactly on the remote machine.
 
@@ -174,6 +200,7 @@ Compiles and uploads a specific target file, a selected directory slice, or the 
 * **Flags & Options:**
 * `--dry-run`: Simulates the compilation and displays exactly which remote file path will be written and what its resulting URL will be.
 * `--clean-target`: When deploying a folder, drops any orphaned `.so` files on the remote server that no longer exist in your local source workspace.
+* `--env`: deploy the shared object only on target env. If omitted, it will deploy on each env.
 
 
 
@@ -184,13 +211,13 @@ Compiles and uploads a specific target file, a selected directory slice, or the 
 
 ---
 
-## 3. Local Stateful Dependencies (`tiramisu svc ...`)
+## 4. Local Stateful Dependencies (`tiramisu svc ...`)
 
-Since you are operating on a single host, databases are installed directly onto the host's bare metal (ideally directed to a mounted, high-performance external SSD).
+Since you are operating on a single host, databases and storage state run non-containerized directly on the host's bare metal (ideally directed to a mounted, high-performance external SSD).
 
 ### `tiramisu svc install <postgres | sqlite3 | redis>`
 
-Installs non-containerized data dependency engines onto the host operating system.
+Installs stateful data dependency engines onto the host operating system package and service layer.
 
 * **Flags & Options:**
 * `--storage-path <path>`: Directs where the raw database storage files should live (e.g., `/mnt/secure-ssd/postgres-data`).
@@ -203,11 +230,11 @@ Installs non-containerized data dependency engines onto the host operating syste
 
 ### `tiramisu svc control <action>`
 
-Wraps systemd interactions to safely change database execution states.
+Wraps system management commands to safely alter database execution states.
 
 * **Arguments:** `<action>` must be one of: `start`, `stop`, `restart`, `status`.
 * **Flags & Options:**
-* `--name <string>`: Targets a specific data engine dependency instance (e.g., `postgres`).
+* `--name <string>`: Targets a specific data engine dependency instance (e.g., `postgres`). *(Required)*
 
 
 
@@ -215,29 +242,12 @@ Wraps systemd interactions to safely change database execution states.
 
 ### `tiramisu svc uninstall <service_name>`
 
-Completely purges a stateful engine from the host OS.
+Completely purges a stateful database engine and its associated data files from the host OS.
 
 * **Flags & Options:**
-* `-y, --yes`: Suppresses warning prompts.
+* `-y, --yes`: Suppresses safety warning prompts.
 
 
-
----
-
-## 4. Native Runtime Service Management (`tiramisu service ...`)
-
-Maps standard system execution states directly to your remote core infrastructure components over SSH.
-
-```text
-tiramisu service <start | stop | restart | reload | status> [options]
-
-```
-
-* **Flags & Options:**
-* `-t, --target <caffeine | all>`: Specifies which layer of the core server infrastructure to command. *(Defaults to `all`)*
-
-
-* *Note: Because Caffeine resolves your `.so` files completely on-the-fly from disk via `stat()`, you do not need to call `reload` when adding new endpoints! You only need to use `reload` or `restart` if you update Caffeine's own internal configurations, ports, or TLS flags.*
 
 ---
 
@@ -285,27 +295,6 @@ Performs a rapid, non-interactive sanity and health audit of the remote executio
 
 ---
 
-## Quick Example Scenarios
-
-### Scenario A: Deploying a single fast C utility function
-
-```bash
-tiramisu deploy utils/to_string.c --host 192.168.1.50
-# Compiles locally, transfers to remote host, creates remote directory layout.
-# URL is live instantly: http://192.168.1.50/api/v1/utils/to_string
-
-```
-
-### Scenario B: Testing a whole new API folder section with verbose output
-
-```bash
-tiramisu deploy billing/ --host 192.168.1.50 --release --verbose
-# Walks billing/ folder, compiles all files inside, syncs them up to /var/lib/tiramisu/functions/billing/
-
-```
-
----
-
 ## 6. Local Virtualized Cloud Orchestration (`tiramisu local ...`)
 
 These commands manage your global, shared local testing playground. It abstracts Docker Compose to spin up isolated container nodes (`env-alpha` and `env-beta`) directly on your machine, mimicking your real Raspberry Pi edge nodes without polluting your host OS.
@@ -318,18 +307,18 @@ Initializes and runs the background containerized infrastructure stack on your d
 * `--build`: Forces Docker to rebuild the runtime images from scratch, updating any internal base configurations.
 
 
-* **Under-the-Hood Execution Flow:**
+
+#### Under-the-Hood Execution Flow:
+
 1. **Self-Healing Probe:** Looks for the global directory `~/.tiramisu/local-cluster/`. If it is missing, the CLI creates the path and materializes the embedded `docker-compose.yml` and `Dockerfile.runtime` templates directly from the binary's internal memory string view.
 2. **Stack Launch:** Spatially maps and boots the cluster silently in the background:
+
 ```bash
 docker compose -f ~/.tiramisu/local-cluster/docker-compose.yml up -d
 
 ```
 
-
 3. **Print Access Map:** Outputs a clean networking matrix showing where the developer can target deployments and send API requests locally to the virtualized Caffeine instances.
-
-
 
 ---
 
@@ -339,12 +328,11 @@ Safely halts all locally running Tiramisu environment nodes and their stateful d
 
 * **Under-the-Hood Execution Flow:**
 Executes a direct stop command against the global tracking structure:
+
 ```bash
 docker compose -f ~/.tiramisu/local-cluster/docker-compose.yml stop
 
 ```
-
-
 
 ---
 
@@ -367,16 +355,32 @@ Wipes out all local container states, dropping database volumes and erasing all 
 
 * **Under-the-Hood Execution Flow:**
 Tears down the containers and explicitly wipes out the persistent Docker volumes mapped to your local environments:
+
 ```bash
 docker compose -f ~/.tiramisu/local-cluster/docker-compose.yml down -v
 
 ```
 
-
-
 ---
 
 ## Updated Quick Example Scenarios
+
+### Scenario A: Deploying a single fast C utility function
+
+```bash
+tiramisu deploy utils/to_string.c --host 192.168.1.50
+# Compiles locally, transfers to remote host, creates remote directory layout.
+# URL is live instantly: http://192.168.1.50/api/v1/utils/to_string
+
+```
+
+### Scenario B: Tuning engine scaling constraints and workers
+
+```bash
+tiramisu caffeine config --workers 4 --port 80 --host 192.168.1.50
+# Connects over SSH, updates caffeine.conf, and triggers a zero-downtime hot-reload of the workers.
+
+```
 
 ### Scenario C: Testing multi-project environments entirely on your local machine
 

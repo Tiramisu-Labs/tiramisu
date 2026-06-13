@@ -17,6 +17,7 @@ class Lexer
             "--help", "-h",
             "--arch",
             "--no-guards",
+            "--build"
         };
         const std::unordered_set<std::string> options = {
             "--output", "-o",

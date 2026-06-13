@@ -249,6 +249,10 @@ void Build::compile(const std::vector<std::filesystem::path>&& files, const std:
 // this really needs to be refractor :(
 void Build::execute(const Command& command)
 {
+    if (command.help) {
+        std::cout << BUILD_HELP;
+        exit(0);
+    }
     const auto env_it = command.options.find("--env");
 
     std::string env_name = env_it != command.options.end() ? env_it->second : "";

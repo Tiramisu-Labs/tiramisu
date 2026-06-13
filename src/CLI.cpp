@@ -8,6 +8,8 @@
 #include <commands/Create.hpp>
 #include <commands/Local.hpp>
 #include <commands/Sys.hpp>
+#include <commands/Caffeine.hpp>
+#include <commands/Deploy.hpp>
 #include <algorithm>
 #include <ranges>
 #include <fstream>
@@ -33,7 +35,8 @@ static std::map<std::string, Commands> commandsMap = {
     {"deploy", Commands::DEPLOY},
     {"help", Commands::HELP},
     {"local", Commands::LOCAL},
-    {"sys", Commands::SYS}
+    {"sys", Commands::SYS},
+    {"caffeine", Commands::CAFFEINE},
 };
 
 static std::map<std::string, std::string_view> commandsHelp = {
@@ -42,7 +45,9 @@ static std::map<std::string, std::string_view> commandsHelp = {
     {"create", CREATE_HELP},
     {"build", BUILD_HELP},
     {"local", LOCAL_HELP},
-    {"sys", SYS_HELP}
+    {"sys", SYS_HELP},
+    {"caffeine", CAFFEINE_HELP},
+    {"deploy", DEPLOY_HELP},
 };
 
 CLI::CLI(std::unique_ptr<Parser> parser, const std::string& env_path)
@@ -131,7 +136,7 @@ bool CLI::create_config_dir() {
 }
     
 void CLI::processParsedCommand(const Command& command) {
-    std::unique_ptr<ICommand> currentCommandInstance = m_commandFactories[static_cast<size_t>(commandsMap[command.name])]();
+    std::unique_ptr<ICommand> currentCommandInstance = commandFactories[static_cast<size_t>(commandsMap[command.name])]();
     try {
         currentCommandInstance->execute(command);
     } catch (const std::runtime_error& e) {
@@ -168,7 +173,8 @@ void CLI::displayHelp(const std::string& command_name) {
         std::cout << "  init       Initialize a new local Tiramisu project workspace framework.\n";
         std::cout << "  build      Compile native handler code modules into deployable binary files.\n";
         std::cout << "  create     Scaffold code template configurations for a new custom dynamic handler.\n";
-        std::cout << "  setup      Bootstrap runtime dependencies, systemd profiles, and engines on a node.\n\n";
+        std::cout << "  setup      Bootstrap runtime dependencies, systemd profiles, and engines on a node.\n";
+        std::cout << "  caffeine   Handle the remote underlying dynamic loader engine\n\n";
 
         std::cout << "Execution & Environment Management:\n";
         std::cout << "  local      Execute runtime handling operations locally on your machine for debugging.\n";
@@ -196,13 +202,14 @@ void CLI::displayHelp(const std::string& command_name) {
 }
 
 void CLI::registerCommandFactories() {
-    m_commandFactories.resize(static_cast<size_t>(Commands::SIZE));
+    commandFactories.resize(static_cast<size_t>(Commands::SIZE));
 
-    m_commandFactories[static_cast<size_t>(Commands::HOST)] = [&]() { return std::make_unique<Host>(); };
-    m_commandFactories[static_cast<size_t>(Commands::INIT)] = [&]() { return std::make_unique<Init>(); };
-    m_commandFactories[static_cast<size_t>(Commands::BUILD)] = [&]() { return std::make_unique<Build>(); };
-    m_commandFactories[static_cast<size_t>(Commands::CREATE)] = [&]() { return std::make_unique<Create>(); };
-    m_commandFactories[static_cast<size_t>(Commands::LOCAL)] = [&]() { return std::make_unique<Local>(); };
-    m_commandFactories[static_cast<size_t>(Commands::SYS)] = [&]() { return std::make_unique<Sys>(); };
-    // deploy...
+    commandFactories[static_cast<size_t>(Commands::HOST)] = [&]() { return std::make_unique<Host>(); };
+    commandFactories[static_cast<size_t>(Commands::INIT)] = [&]() { return std::make_unique<Init>(); };
+    commandFactories[static_cast<size_t>(Commands::BUILD)] = [&]() { return std::make_unique<Build>(); };
+    commandFactories[static_cast<size_t>(Commands::CREATE)] = [&]() { return std::make_unique<Create>(); };
+    commandFactories[static_cast<size_t>(Commands::LOCAL)] = [&]() { return std::make_unique<Local>(); };
+    commandFactories[static_cast<size_t>(Commands::SYS)] = [&]() { return std::make_unique<Sys>(); };
+    commandFactories[static_cast<size_t>(Commands::CAFFEINE)] = [&]() { return std::make_unique<Caffeine>(); };
+    commandFactories[static_cast<size_t>(Commands::DEPLOY)] = [&]() { return std::make_unique<Deploy>(); };
 }

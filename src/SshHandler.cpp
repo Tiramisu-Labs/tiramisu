@@ -214,6 +214,7 @@ bool SshHandler::try_password(const std::string& password)
     int rc = ssh_userauth_password(sshSession.get(), nullptr, password.c_str());
     
     if (rc == SSH_AUTH_SUCCESS) {
+        authenticated = true;
         return true;
     }
 
@@ -235,6 +236,7 @@ bool SshHandler::try_password(const std::string& password)
         }
         
         if (rc == SSH_AUTH_SUCCESS) {
+            authenticated = true;
             return true;
         }
     }
@@ -483,5 +485,63 @@ bool SshHandler::attemptConnection() {
 bool SshHandler::connect() {
     if (!sshConnect()) return false;
     int rc = ssh_userauth_publickey_auto(sshSession.get(), nullptr, nullptr);
-    return (rc == SSH_AUTH_SUCCESS);
+    if (rc == SSH_AUTH_SUCCESS) {
+        authenticated = true;
+        return true;
+    }
+    return false;
+}
+
+bool SshHandler::upload_to_dest(const std::string& local_path, const std::string& remote_path)
+{
+    int rc, nwritten;
+    if (!sshConnect()) return false;
+
+    auto sftp = initSftp();
+    if (!sftp) return false;
+
+    if (remote_path.find('/') != std::string::npos) {
+        std::string dir = "";
+        std::string cpy_path = remote_path;
+        while (cpy_path.find('/') != std::string::npos) {
+            size_t pos = cpy_path.find_first_of('/');
+            dir += cpy_path.substr(0, pos + 1);
+            cpy_path = cpy_path.substr(pos + 1);
+            
+            if (dir == "/" || dir.empty()) continue;
+
+            rc = sftp_mkdir(sftp.get(), dir.c_str(), S_IRWXU);
+            if (rc != SSH_OK && sftp_get_error(sftp.get()) != SSH_FX_FILE_ALREADY_EXISTS) {
+            }
+        }
+    }
+    
+    sftp_file file = sftp_open(sftp.get(), remote_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+    if (file == NULL) {
+        std::cerr << "Can't open remote file for writing: " << remote_path << "\n";
+        return false;
+    }
+
+    std::ifstream fin(local_path, std::ios::binary);
+    if (!fin.is_open()) {
+        std::cerr << "Can't open local build source: " << local_path << "\n";
+        sftp_close(file);
+        return false;
+    }
+
+    constexpr size_t max_xfer_buf_size = 10240;
+    char buffer[max_xfer_buf_size];
+    bool success = true;
+
+    while (fin.read(buffer, sizeof(buffer)) || fin.gcount() > 0) {
+        nwritten = sftp_write(file, buffer, fin.gcount());
+        if (nwritten != fin.gcount()) {
+            std::cerr << "Error writing block segments over network layer.\n";
+            success = false;
+            break;
+        }
+    }
+
+    sftp_close(file);
+    return success;
 }

@@ -28,7 +28,8 @@ static bool isCommand(const std::string& command) {
         command == "init" || command == "host" ||
         command == "create" || command == "build" ||
         command == "deploy" || command == "sys" ||
-        command == "help" || command == "local";
+        command == "help" || command == "local" ||
+        command == "caffeine";
 }
 
 void Lexer::tokenize(int argc, char* argv[])

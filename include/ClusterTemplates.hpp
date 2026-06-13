@@ -99,15 +99,18 @@ RUN apt-get update && apt-get install -y \
 RUN rm -f /lib/systemd/system/multi-user.target.wants/getty.target
 
 # Configure SSH daemon
-RUN mkdir /var/run/sshd
+RUN mkdir -p /var/run/sshd
 RUN echo 'root:tiramisu_local_dev' | chpasswd
 RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+# Tell systemd to automatically launch the SSH daemon on boot
+RUN systemctl enable ssh
 
 # Expose ports for Nginx (80) and SSH (22)
 EXPOSE 80 22
 
-# Tell Docker to boot systemd as the primary init system
-CMD ["/bin/sh", "-c", "mkdir -p /run/sshd && exec /usr/sbin/sshd -D"]
+# Tell Docker to boot systemd as the primary init system (PID 1)
+CMD ["/sbin/init"]
 )";
 
 // The embedded nginx.conf

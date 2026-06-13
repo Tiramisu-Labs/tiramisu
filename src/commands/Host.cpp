@@ -67,7 +67,8 @@ void Host::add(const Command&& command) {
             project->addOrUpdateEnv(env_name, new_node);
             
             if (project->save()) {
-                std::cout << "Node successfully saved to configuration profile!\n";
+                std::cout << "Node successfully saved to configuration profile!\n"
+                          << "Run host setup [--skip-nginx] [--caffeine-version <string>] to setup caffeine engine on remote host.\n";
             }
         }
     }

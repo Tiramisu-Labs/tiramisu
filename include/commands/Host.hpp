@@ -13,7 +13,7 @@
 class SshHandler;
 
 inline constexpr std::string_view HOST_HELP = R"(
-    Usage: host <action> [arguments...]
+    Usage: host <action> <env_name> [arguments...]
         Manages host configurations.
         host setup [--skip-nginx] [--caffeine-version <string>]: Remotely provisions a clean OS into a fully functioning Tiramisu node.
         host reset [--keep-db] [-y, --yes]: Wipes out all deployed application functions while leaving the underlying Nginx, Caffeine, and database configurations intact.
@@ -109,6 +109,35 @@ $SUDO rm -rf "$BUILD_DIR"
 
 echo "Caffeine successfully provisioned and running!"
 )SCRIPT";
+
+inline constexpr std::string_view TEST_FUNCTION = R"(
+#include <stdio.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <string.h>
+
+const char* handler(
+    const char *request_data, 
+    char *response_buffer, 
+    size_t buffer_size,
+    size_t *result_len
+) {
+    const char* STATIC_JSON = "{\"status\": 200, \"body\": \"Hello from Static C!\n\"}";
+
+    // 1. Set the length (Optional, but highly recommended for clarity)
+    *result_len = strlen(STATIC_JSON);
+    
+    // 2. Return the pointer to the static memory address
+    return STATIC_JSON;
+}
+
+#ifdef __cplusplus
+}
+#endif
+)";
 
 class Host : public ICommand {
     private:

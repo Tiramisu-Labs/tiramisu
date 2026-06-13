@@ -29,7 +29,7 @@ class CLI
         bool create_config_dir();
 
         // factory method
-        std::vector<std::function<std::unique_ptr<ICommand>()>> m_commandFactories;
+        std::vector<std::function<std::unique_ptr<ICommand>()>> commandFactories;
         void registerCommandFactories();
 
     public:
